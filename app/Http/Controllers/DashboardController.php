@@ -33,13 +33,7 @@ class DashboardController extends Controller
                 ->where('percent_complete', '<', 100)
                 ->count(),
             
-            'open_tickets' => Ticket::where('status', 'open')
-                ->when(!$user->hasRole('admin'), function ($query) use ($user) {
-                    return $query->where(function ($q) use ($user) {
-                        $q->where('company_id', $user->company_id)
-                          ->orWhere('assigned_to', $user->id);
-                    });
-                })->count(),
+            'open_tickets' => 0, // TODO: Add when Ticket model is ready
         ];
 
         // Get recent projects
@@ -60,14 +54,8 @@ class DashboardController extends Controller
             ->get();
 
         // Get assigned tickets
-        $myTickets = Ticket::with(['company'])
-            ->where('assigned_to', $user->id)
-            ->where('status', 'open')
-            ->orderBy('priority', 'desc')
-            ->orderBy('created_at', 'asc')
-            ->limit(10)
-            ->get();
+        $myTickets = collect([]); // TODO: Add when Ticket model is ready
 
-        return view('dashboard', compact('stats', 'recentProjects', 'myTasks', 'myTickets'));
+        return view('dashboard', compact('stats', 'recentProjects', 'myTasks'));
     }
 }
