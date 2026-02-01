@@ -56,6 +56,6 @@ class DashboardController extends Controller
         // Get assigned tickets
         $myTickets = collect([]); // TODO: Add when Ticket model is ready
 
-        return view('dashboard', compact('stats', 'recentProjects', 'myTasks'));
+        return view('dashboard', compact('stats'));
     }
 }

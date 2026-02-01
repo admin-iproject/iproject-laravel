@@ -1,8 +1,13 @@
-@extends('layouts.app')
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Companies
+        </h2>
+    </x-slot>
 
-@section('title', 'Companies')
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-@section('content')
 <div class="mb-6 flex items-center justify-between">
     <h1 class="text-2xl font-bold text-gray-900">Companies</h1>
     
@@ -15,7 +20,6 @@
     </a>
     @endcan
 </div>
-
 <!-- Search and Filters -->
 <div class="bg-white rounded-lg shadow-md p-6 mb-6">
     <form method="GET" action="{{ route('companies.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -196,4 +200,7 @@
     </div>
     @endif
 </div>
-@endsection
+
+        </div>
+    </div>
+</x-app-layout>

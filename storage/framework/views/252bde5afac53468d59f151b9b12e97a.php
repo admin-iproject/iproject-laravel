@@ -30,7 +30,8 @@
 
             <!-- Page Content -->
             <main>
-                <?php echo $__env->yieldContent('content'); ?>
+                <?php echo e($slot); ?>
+
             </main>
         </div>
     </body>
