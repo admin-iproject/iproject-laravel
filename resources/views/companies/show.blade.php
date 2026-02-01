@@ -160,7 +160,6 @@
         <!-- Logo -->
         @if($company->logo)
         <div class="bg-white rounded-lg shadow p-6">
-            <!--<h2 class="text-lg font-semibold text-gray-900 mb-4">Logo</h2>-->
             <img src="{{ Storage::url($company->logo) }}" alt="{{ $company->name }}" 
                  class="w-full rounded-lg">
         </div>
@@ -394,4 +393,83 @@
 
         </div>
     </div>
+
+<!-- Edge Tabs (Fixed to right side) -->
+<x-edge-tabs 
+    side="right"
+    :tabs="[
+        ['id' => 'departments', 'label' => 'Departments', 'count' => $company->departments->count()],
+        ['id' => 'contacts', 'label' => 'Contacts', 'count' => $company->contacts->count()],
+        ['id' => 'projects', 'label' => 'Projects', 'count' => $company->projects->count()],
+    ]"
+/>
+
+<!-- Departments Slide-out -->
+<x-slideout 
+    id="departments" 
+    side="right" 
+    width="lg"
+    title="Departments for {{ $company->name }}"
+>
+    <div class="space-y-4">
+        <!-- Add Department Button -->
+        <div class="flex justify-end">
+            <button class="inline-flex items-center px-3 py-2 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Add Department
+            </button>
+        </div>
+
+        <!-- Departments List -->
+        @if($company->departments->count() > 0)
+            <div class="space-y-3">
+                @foreach($company->departments as $department)
+                    <div class="border rounded-lg p-4 hover:bg-gray-50">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-gray-900">{{ $department->name }}</h4>
+                                @if($department->description)
+                                    <p class="text-sm text-gray-600 mt-1">{{ $department->description }}</p>
+                                @endif
+                                
+                                <div class="mt-2 space-y-1 text-sm text-gray-600">
+                                    @if($department->phone)
+                                        <p>📞 {{ $department->phone }}</p>
+                                    @endif
+                                    @if($department->email)
+                                        <p>✉️ {{ $department->email }}</p>
+                                    @endif
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2 ml-4">
+                                <button class="text-blue-600 hover:text-blue-800">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No departments</h3>
+                <p class="mt-1 text-sm text-gray-500">Get started by creating a new department.</p>
+            </div>
+        @endif
+    </div>
+</x-slideout>
+
 </x-app-layout>

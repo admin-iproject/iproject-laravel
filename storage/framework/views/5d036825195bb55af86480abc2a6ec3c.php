@@ -172,7 +172,6 @@
         <!-- Logo -->
         <?php if($company->logo): ?>
         <div class="bg-white rounded-lg shadow p-6">
-            <!--<h2 class="text-lg font-semibold text-gray-900 mb-4">Logo</h2>-->
             <img src="<?php echo e(Storage::url($company->logo)); ?>" alt="<?php echo e($company->name); ?>" 
                  class="w-full rounded-lg">
         </div>
@@ -407,6 +406,118 @@
 
         </div>
     </div>
+
+<!-- Edge Tabs (Fixed to right side) -->
+<?php if (isset($component)) { $__componentOriginal93f4e6277b2105a41b876a6d7c3ef149 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal93f4e6277b2105a41b876a6d7c3ef149 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.edge-tabs','data' => ['side' => 'right','tabs' => [
+        ['id' => 'departments', 'label' => 'Departments', 'count' => $company->departments->count()],
+        ['id' => 'contacts', 'label' => 'Contacts', 'count' => $company->contacts->count()],
+        ['id' => 'projects', 'label' => 'Projects', 'count' => $company->projects->count()],
+    ]]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('edge-tabs'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['side' => 'right','tabs' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute([
+        ['id' => 'departments', 'label' => 'Departments', 'count' => $company->departments->count()],
+        ['id' => 'contacts', 'label' => 'Contacts', 'count' => $company->contacts->count()],
+        ['id' => 'projects', 'label' => 'Projects', 'count' => $company->projects->count()],
+    ])]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal93f4e6277b2105a41b876a6d7c3ef149)): ?>
+<?php $attributes = $__attributesOriginal93f4e6277b2105a41b876a6d7c3ef149; ?>
+<?php unset($__attributesOriginal93f4e6277b2105a41b876a6d7c3ef149); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal93f4e6277b2105a41b876a6d7c3ef149)): ?>
+<?php $component = $__componentOriginal93f4e6277b2105a41b876a6d7c3ef149; ?>
+<?php unset($__componentOriginal93f4e6277b2105a41b876a6d7c3ef149); ?>
+<?php endif; ?>
+
+<!-- Departments Slide-out -->
+<?php if (isset($component)) { $__componentOriginal32b5ad1208958dcd9f904845ee47a7d5 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal32b5ad1208958dcd9f904845ee47a7d5 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.slideout','data' => ['id' => 'departments','side' => 'right','width' => 'lg','title' => 'Departments for '.e($company->name).'']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('slideout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['id' => 'departments','side' => 'right','width' => 'lg','title' => 'Departments for '.e($company->name).'']); ?>
+    <div class="space-y-4">
+        <!-- Add Department Button -->
+        <div class="flex justify-end">
+            <button class="inline-flex items-center px-3 py-2 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Add Department
+            </button>
+        </div>
+
+        <!-- Departments List -->
+        <?php if($company->departments->count() > 0): ?>
+            <div class="space-y-3">
+                <?php $__currentLoopData = $company->departments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $department): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <div class="border rounded-lg p-4 hover:bg-gray-50">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-gray-900"><?php echo e($department->name); ?></h4>
+                                <?php if($department->description): ?>
+                                    <p class="text-sm text-gray-600 mt-1"><?php echo e($department->description); ?></p>
+                                <?php endif; ?>
+                                
+                                <div class="mt-2 space-y-1 text-sm text-gray-600">
+                                    <?php if($department->phone): ?>
+                                        <p>📞 <?php echo e($department->phone); ?></p>
+                                    <?php endif; ?>
+                                    <?php if($department->email): ?>
+                                        <p>✉️ <?php echo e($department->email); ?></p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2 ml-4">
+                                <button class="text-blue-600 hover:text-blue-800">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </div>
+        <?php else: ?>
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No departments</h3>
+                <p class="mt-1 text-sm text-gray-500">Get started by creating a new department.</p>
+            </div>
+        <?php endif; ?>
+    </div>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal32b5ad1208958dcd9f904845ee47a7d5)): ?>
+<?php $attributes = $__attributesOriginal32b5ad1208958dcd9f904845ee47a7d5; ?>
+<?php unset($__attributesOriginal32b5ad1208958dcd9f904845ee47a7d5); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal32b5ad1208958dcd9f904845ee47a7d5)): ?>
+<?php $component = $__componentOriginal32b5ad1208958dcd9f904845ee47a7d5; ?>
+<?php unset($__componentOriginal32b5ad1208958dcd9f904845ee47a7d5); ?>
+<?php endif; ?>
+
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
