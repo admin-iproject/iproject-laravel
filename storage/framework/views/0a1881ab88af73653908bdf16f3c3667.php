@@ -98,16 +98,16 @@ $translateVisible = 'translate-x-0';
                 >
                     <div class="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
                         <!-- Header -->
-                        <div class="bg-primary-600 px-4 py-6 sm:px-6">
+                        <div class="bg-blue-400 px-4 py-6 sm:px-6">
                             <div class="flex items-center justify-between">
-                                <h2 class="text-lg font-medium text-white">
+                                <h2 class="text-lg font-semibold text-white">
                                     <?php echo e($title); ?>
 
                                 </h2>
                                 <button 
                                     @click="open = false" 
                                     type="button" 
-                                    class="rounded-md text-primary-200 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
+                                    class="rounded-md text-blue-200 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
                                 >
                                     <span class="sr-only">Close panel</span>
                                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

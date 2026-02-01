@@ -15,12 +15,12 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // API routes for future mobile app or integrations
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
-    // Projects API
-    Route::apiResource('projects', App\Http\Controllers\Api\ProjectController::class);
+    // Projects API - Disabled until Projects module is built
+    // Route::apiResource('projects', App\Http\Controllers\Api\ProjectController::class);
     
-    // Tasks API
-    Route::apiResource('tasks', App\Http\Controllers\Api\TaskController::class);
+    // Tasks API - Disabled until Tasks module is built
+    // Route::apiResource('tasks', App\Http\Controllers\Api\TaskController::class);
     
-    // Tickets API
-    Route::apiResource('tickets', App\Http\Controllers\Api\TicketController::class);
+    // Tickets API - Disabled until Tickets module is built
+    // Route::apiResource('tickets', App\Http\Controllers\Api\TicketController::class);
 });

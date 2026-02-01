@@ -13,7 +13,7 @@ $sideClass = $side === 'left' ? 'left-0' : 'right-0';
             type="button"
             x-data
             @click.prevent="window.dispatchEvent(new CustomEvent('slideout-{{ $tab['id'] }}'))"
-            class="group relative bg-blue-400 hover:bg-blue-200 text-black shadow-lg transition-all hover:{{ $side === 'left' ? 'pl' : 'pr' }}-6 cursor-pointer {{ $side === 'left' ? 'rounded-r-lg' : 'rounded-l-lg' }}"
+            class="group relative text-white bg-blue-400 hover:bg-blue-200 hover:text-black shadow-lg transition-all hover:{{ $side === 'left' ? 'pl' : 'pr' }}-6 cursor-pointer {{ $side === 'left' ? 'rounded-r-lg' : 'rounded-l-lg' }}"
             style="writing-mode: vertical-rl; text-orientation: mixed; padding: 12px 8px;"
             title="{{ $tab['label'] }}"
         >

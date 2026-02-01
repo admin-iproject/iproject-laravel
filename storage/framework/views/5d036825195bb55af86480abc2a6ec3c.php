@@ -448,10 +448,13 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['id' => 'departments','side' => 'right','width' => 'lg','title' => 'Departments for '.e($company->name).'']); ?>
-    <div class="space-y-4">
+    <div x-data="departmentsManager(<?php echo e($company->id); ?>)" x-init="loadDepartments()">
         <!-- Add Department Button -->
-        <div class="flex justify-end">
-            <button class="inline-flex items-center px-3 py-2 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700">
+        <div class="flex justify-end mb-4">
+            <button 
+				@click="showAddForm = true"
+				class="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300"
+			>
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
@@ -459,35 +462,114 @@
             </button>
         </div>
 
+        <!-- Add/Edit Form -->
+        <div x-show="showAddForm || editingDept" class="mb-6 bg-gray-50 rounded-lg p-4">
+            <h4 class="font-semibold text-gray-900 mb-3" x-text="editingDept ? 'Edit Department' : 'New Department'"></h4>
+            
+            <form @submit.prevent="editingDept ? updateDepartment() : createDepartment()">
+                <div class="space-y-3">
+                    <!-- Department Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Department Name *</label>
+                        <input 
+                            type="text" 
+                            x-model="form.name"
+                            required
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                        >
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea 
+                            x-model="form.description"
+                            rows="2"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                        ></textarea>
+                    </div>
+
+                    <!-- Phone -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input 
+                            type="text" 
+                            x-model="form.phone"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                        >
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button 
+                            type="button"
+                            @click="cancelForm()"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+							type="submit"
+							class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300"
+>
+                            <span x-text="editingDept ? 'Update' : 'Create'"></span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-8">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <p class="mt-2 text-sm text-gray-600">Loading departments...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div x-show="error" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p class="text-sm text-red-600" x-text="error"></p>
+        </div>
+
+        <!-- Success Message -->
+        <div x-show="success" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+            <p class="text-sm text-green-600" x-text="success"></p>
+        </div>
+
         <!-- Departments List -->
-        <?php if($company->departments->count() > 0): ?>
+        <div x-show="!loading && departments.length > 0">
             <div class="space-y-3">
-                <?php $__currentLoopData = $company->departments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $department): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <template x-for="dept in departments" :key="dept.id">
                     <div class="border rounded-lg p-4 hover:bg-gray-50">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
-                                <h4 class="font-semibold text-gray-900"><?php echo e($department->name); ?></h4>
-                                <?php if($department->description): ?>
-                                    <p class="text-sm text-gray-600 mt-1"><?php echo e($department->description); ?></p>
-                                <?php endif; ?>
+                                <h4 class="font-semibold text-gray-900" x-text="dept.name"></h4>
+                                <p x-show="dept.description" class="text-sm text-gray-600 mt-1" x-text="dept.description"></p>
                                 
                                 <div class="mt-2 space-y-1 text-sm text-gray-600">
-                                    <?php if($department->phone): ?>
-                                        <p>📞 <?php echo e($department->phone); ?></p>
-                                    <?php endif; ?>
-                                    <?php if($department->email): ?>
-                                        <p>✉️ <?php echo e($department->email); ?></p>
-                                    <?php endif; ?>
+                                    <p x-show="dept.phone">
+                                        📞 <span x-text="dept.phone"></span>
+                                    </p>
+                                    <p x-show="dept.owner" class="text-xs text-gray-500">
+                                        Owner: <span x-text="dept.owner?.first_name + ' ' + dept.owner?.last_name"></span>
+                                    </p>
                                 </div>
                             </div>
                             
                             <div class="flex gap-2 ml-4">
-                                <button class="text-blue-600 hover:text-blue-800">
+                                <button 
+                                    @click="editDepartment(dept)"
+                                    class="text-blue-600 hover:text-blue-800"
+                                    title="Edit"
+                                >
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                     </svg>
                                 </button>
-                                <button class="text-red-600 hover:text-red-800">
+                                <button 
+                                    @click="deleteDepartment(dept.id)"
+                                    class="text-red-600 hover:text-red-800"
+                                    title="Delete"
+                                >
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
@@ -495,17 +577,18 @@
                             </div>
                         </div>
                     </div>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                </template>
             </div>
-        <?php else: ?>
-            <div class="text-center py-12">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">No departments</h3>
-                <p class="mt-1 text-sm text-gray-500">Get started by creating a new department.</p>
-            </div>
-        <?php endif; ?>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="!loading && departments.length === 0 && !showAddForm" class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No departments</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by creating a new department.</p>
+        </div>
     </div>
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -517,6 +600,208 @@
 <?php $component = $__componentOriginal32b5ad1208958dcd9f904845ee47a7d5; ?>
 <?php unset($__componentOriginal32b5ad1208958dcd9f904845ee47a7d5); ?>
 <?php endif; ?>
+
+<script>
+function departmentsManager(companyId) {
+    return {
+        companyId: companyId,
+        departments: [],
+        loading: false,
+        error: null,
+        success: null,
+        showAddForm: false,
+        editingDept: null,
+        form: {
+            name: '',
+            description: '',
+            phone: '',
+        },
+
+        async loadDepartments() {
+            this.loading = true;
+            this.error = null;
+            
+            try {
+                const response = await fetch(`/companies/${this.companyId}/departments`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Get as array buffer to strip BOM bytes
+                const buffer = await response.arrayBuffer();
+                let bytes = new Uint8Array(buffer);
+                
+                // Strip all leading BOM sequences (EF BB BF)
+                let start = 0;
+                while (start < bytes.length - 2 && 
+                       bytes[start] === 0xEF && 
+                       bytes[start + 1] === 0xBB && 
+                       bytes[start + 2] === 0xBF) {
+                    start += 3;
+                }
+                
+                // Convert cleaned bytes to text
+                const decoder = new TextDecoder('utf-8');
+                const text = decoder.decode(bytes.slice(start));
+                
+                const data = JSON.parse(text);
+                this.departments = data.departments || [];
+                console.log('Loaded departments:', this.departments);
+            } catch (err) {
+                this.error = 'Failed to load departments: ' + err.message;
+                console.error('Load error:', err);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async createDepartment() {
+            this.error = null;
+            this.success = null;
+            
+            try {
+                const response = await fetch(`/companies/${this.companyId}/departments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(this.form)
+                });
+
+                // Strip BOM from response
+                const buffer = await response.arrayBuffer();
+                let bytes = new Uint8Array(buffer);
+                let start = 0;
+                while (start < bytes.length - 2 && bytes[start] === 0xEF && bytes[start + 1] === 0xBB && bytes[start + 2] === 0xBF) {
+                    start += 3;
+                }
+                const decoder = new TextDecoder('utf-8');
+                const text = decoder.decode(bytes.slice(start));
+                const data = JSON.parse(text);
+                
+                if (response.ok) {
+                    this.success = 'Department created successfully';
+                    this.departments.push(data.department);
+                    this.cancelForm();
+                    setTimeout(() => this.success = null, 3000);
+                } else {
+                    this.error = data.error || data.message || 'Failed to create department';
+                }
+            } catch (err) {
+                this.error = 'Failed to create department: ' + err.message;
+                console.error(err);
+            }
+        },
+
+        editDepartment(dept) {
+            this.editingDept = dept;
+            this.form = {
+                name: dept.name,
+                description: dept.description || '',
+                phone: dept.phone || '',
+            };
+            this.showAddForm = false;
+        },
+
+        async updateDepartment() {
+            this.error = null;
+            this.success = null;
+            
+            try {
+                const response = await fetch(`/companies/${this.companyId}/departments/${this.editingDept.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(this.form)
+                });
+
+                // Strip BOM from response
+                const buffer = await response.arrayBuffer();
+                let bytes = new Uint8Array(buffer);
+                let start = 0;
+                while (start < bytes.length - 2 && bytes[start] === 0xEF && bytes[start + 1] === 0xBB && bytes[start + 2] === 0xBF) {
+                    start += 3;
+                }
+                const decoder = new TextDecoder('utf-8');
+                const text = decoder.decode(bytes.slice(start));
+                const data = JSON.parse(text);
+                
+                if (response.ok) {
+                    this.success = 'Department updated successfully';
+                    const index = this.departments.findIndex(d => d.id === this.editingDept.id);
+                    if (index !== -1) {
+                        this.departments[index] = data.department;
+                    }
+                    this.cancelForm();
+                    setTimeout(() => this.success = null, 3000);
+                } else {
+                    this.error = data.error || data.message || 'Failed to update department';
+                }
+            } catch (err) {
+                this.error = 'Failed to update department: ' + err.message;
+                console.error(err);
+            }
+        },
+
+        async deleteDepartment(deptId) {
+            if (!confirm('Are you sure you want to delete this department?')) {
+                return;
+            }
+
+            this.error = null;
+            this.success = null;
+            
+            try {
+                const response = await fetch(`/companies/${this.companyId}/departments/${deptId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                // Strip BOM from response
+                const buffer = await response.arrayBuffer();
+                let bytes = new Uint8Array(buffer);
+                let start = 0;
+                while (start < bytes.length - 2 && bytes[start] === 0xEF && bytes[start + 1] === 0xBB && bytes[start + 2] === 0xBF) {
+                    start += 3;
+                }
+                const decoder = new TextDecoder('utf-8');
+                const text = decoder.decode(bytes.slice(start));
+                const data = JSON.parse(text);
+                
+                if (response.ok) {
+                    this.success = 'Department deleted successfully';
+                    this.departments = this.departments.filter(d => d.id !== deptId);
+                    setTimeout(() => this.success = null, 3000);
+                } else {
+                    this.error = data.error || data.message || 'Failed to delete department';
+                }
+            } catch (err) {
+                this.error = 'Failed to delete department: ' + err.message;
+                console.error(err);
+            }
+        },
+
+        cancelForm() {
+            this.showAddForm = false;
+            this.editingDept = null;
+            this.form = {
+                name: '',
+                description: '',
+                phone: '',
+            };
+        }
+    }
+}
+</script>
 
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
