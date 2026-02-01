@@ -6,7 +6,10 @@
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
                     <a href="{{ route('dashboard') }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+                        <!--<x-application-logo class="block h-9 w-auto fill-current text-gray-800" />-->
+						
+						<img src="/storage/iPROJECTlogo.png" alt="iPROJECT - The Fine Art of Project Management" width = 200px height = 60px>
+						
                     </a>
                 </div>
 

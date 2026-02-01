@@ -10,7 +10,7 @@
             <!-- Stats Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <!-- Total Projects -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6 hover:shadow-lg">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600">Total Projects</p>
@@ -25,7 +25,7 @@
                 </div>
 
                 <!-- Active Projects -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6 hover:shadow-lg">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600">Active Projects</p>
@@ -40,7 +40,7 @@
                 </div>
 
                 <!-- My Tasks -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6 hover:shadow-lg">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600">My Tasks</p>
@@ -55,7 +55,7 @@
                 </div>
 
                 <!-- Open Tickets -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <div class="bg-white overflow-hidden shadow-md sm:rounded-lg p-6 hover:shadow-lg">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600">Open Tickets</p>
