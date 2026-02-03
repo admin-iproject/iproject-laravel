@@ -21,6 +21,15 @@ class CompanyController extends Controller
 
         $query = Company::with(['owner', 'lastEditor']);
 
+        // Scope filtering based on user type
+        $user = Auth::user();
+        
+        // Only super admin (company_id = null && admin role) sees ALL companies
+        // Everyone else ONLY sees their own company
+        if (!($user->hasRole('admin') && $user->company_id === null)) {
+            $query->where('id', $user->company_id);
+        }
+
         // Search filter
         if ($request->filled('search')) {
             $search = $request->search;
@@ -48,9 +57,17 @@ class CompanyController extends Controller
 
         $companies = $query->paginate(20);
 
-        // Get filter options
-        $types = Company::distinct()->pluck('type')->filter();
-        $categories = Company::distinct()->pluck('category')->filter();
+        // Get filter options (only from visible companies)
+        $typesQuery = Company::distinct();
+        $categoriesQuery = Company::distinct();
+        
+        if (!($user->hasRole('admin') && $user->company_id === null)) {
+            $typesQuery->where('id', $user->company_id);
+            $categoriesQuery->where('id', $user->company_id);
+        }
+        
+        $types = $typesQuery->pluck('type')->filter();
+        $categories = $categoriesQuery->pluck('category')->filter();
 
         return view('companies.index', compact('companies', 'types', 'categories'));
     }
@@ -100,6 +117,14 @@ class CompanyController extends Controller
     {
         $this->authorize('view', $company);
 
+        // Non super-admins can only view their own company
+        $user = Auth::user();
+        if (!($user->hasRole('admin') && $user->company_id === null)) {
+            if ($company->id !== $user->company_id) {
+                abort(403);
+            }
+        }
+
         $company->load([
             'owner',
             'lastEditor',
@@ -130,6 +155,14 @@ class CompanyController extends Controller
     {
         $this->authorize('update', $company);
 
+        // Non super-admins can only edit their own company
+        $user = Auth::user();
+        if (!($user->hasRole('admin') && $user->company_id === null)) {
+            if ($company->id !== $user->company_id) {
+                abort(403);
+            }
+        }
+
         $users = User::select('id', 'first_name', 'last_name', 'email')
                     ->orderBy('first_name')
                     ->get();
@@ -143,6 +176,14 @@ class CompanyController extends Controller
     public function update(UpdateCompanyRequest $request, Company $company)
     {
         $this->authorize('update', $company);
+
+        // Non super-admins can only update their own company
+        $user = Auth::user();
+        if (!($user->hasRole('admin') && $user->company_id === null)) {
+            if ($company->id !== $user->company_id) {
+                abort(403);
+            }
+        }
 
         $validated = $request->validated();
 
@@ -166,7 +207,7 @@ class CompanyController extends Controller
     }
 
     /**
-     * Remove the specified company.
+     * Soft delete the specified company - Super Admin only.
      */
     public function destroy(Company $company)
     {
@@ -181,16 +222,53 @@ class CompanyController extends Controller
             return back()->with('error', 'Cannot delete company with associated projects. Please reassign projects first.');
         }
 
+        // Soft delete
+        $company->delete();
+
+        return redirect()
+            ->route('companies.index')
+            ->with('success', 'Company soft deleted. Can be restored later.');
+    }
+
+    /**
+     * Force delete (permanent) - Super Admin only.
+     */
+    public function forceDestroy(Company $company)
+    {
+        $this->authorize('forceDelete', $company);
+
+        // Check dependencies
+        if ($company->users()->count() > 0 || $company->projects()->count() > 0) {
+            return back()->with('error', 'Cannot permanently delete company with dependencies.');
+        }
+
         // Delete logo if exists
         if ($company->logo) {
             Storage::disk('public')->delete($company->logo);
         }
 
-        $company->delete();
+        // Permanently delete
+        $company->forceDelete();
 
         return redirect()
             ->route('companies.index')
-            ->with('success', 'Company deleted successfully.');
+            ->with('success', 'Company permanently deleted.');
+    }
+
+    /**
+     * Restore soft-deleted company - Super Admin only.
+     */
+    public function restore($id)
+    {
+        $company = Company::withTrashed()->findOrFail($id);
+        
+        $this->authorize('restore', $company);
+
+        $company->restore();
+
+        return redirect()
+            ->route('companies.show', $company)
+            ->with('success', 'Company restored successfully.');
     }
 
     /**

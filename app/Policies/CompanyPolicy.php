@@ -8,81 +8,83 @@ use App\Models\User;
 class CompanyPolicy
 {
     /**
+     * Note: No before() needed here.
+     * Gate::before() in AppServiceProvider handles company_id = null bypass.
+     */
+
+    /**
      * Determine if the user can view any companies.
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view-companies');
+        return $user->hasPermissionTo('companies-view');
     }
 
     /**
      * Determine if the user can view the company.
+     * Users can always view the company they belong to.
      */
     public function view(User $user, Company $company): bool
     {
-        // Admins can view all companies
-        if ($user->hasRole('admin')) {
-            return true;
+        if (!$user->hasPermissionTo('companies-view')) {
+            return false;
         }
 
-        // Users can view their own company
-        if ($user->company_id === $company->id) {
-            return true;
-        }
-
-        // Otherwise check permission
-        return $user->can('view-companies');
+        // User can only view their own company
+        return $user->company_id === $company->id;
     }
 
     /**
      * Determine if the user can create companies.
+     * Company-level users can NEVER create companies.
+     * Only company_id = null users can (handled by Gate::before()).
      */
     public function create(User $user): bool
     {
-        return $user->can('create-companies');
+        return false;
     }
 
     /**
      * Determine if the user can update the company.
+     * Only company_admin and manager can edit their own company.
      */
     public function update(User $user, Company $company): bool
     {
-        // Admins can update any company
-        if ($user->hasRole('admin')) {
-            return true;
+        if (!$user->hasPermissionTo('companies-edit')) {
+            return false;
         }
 
-        // Company owners can update their company
-        if ($user->id === $company->owner_id) {
-            return true;
-        }
-
-        // Otherwise check permission
-        return $user->can('edit-companies');
+        // Can only edit their own company
+        return $user->company_id === $company->id;
     }
 
     /**
      * Determine if the user can delete the company.
+     * Company-level users can NEVER delete companies.
+     * Only company_id = null users can (handled by Gate::before()).
      */
     public function delete(User $user, Company $company): bool
     {
-        // Only admins can delete companies
-        return $user->hasRole('admin') && $user->can('delete-companies');
+        return false;
     }
 
     /**
      * Determine if the user can restore the company.
+     * Company-level users can NEVER restore companies.
+     * Only company_id = null users can (handled by Gate::before()).
      */
     public function restore(User $user, Company $company): bool
     {
-        return $user->hasRole('admin');
+        return false;
     }
 
     /**
      * Determine if the user can permanently delete the company.
+     * Company-level users can NEVER force delete companies.
+     * Only company_id = null users can (handled by Gate::before()).
      */
     public function forceDelete(User $user, Company $company): bool
     {
-        return $user->hasRole('admin');
+        return false;
     }
 }

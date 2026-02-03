@@ -16,95 +16,164 @@ class RoleSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Create Roles
-        $admin = Role::create(['name' => 'admin']);
-        $manager = Role::create(['name' => 'manager']);
-        $employee = Role::create(['name' => 'employee']);
-        $client = Role::create(['name' => 'client']);
+        // ============================================================
+        // ROLES
+        // ============================================================
+        // System-level roles (company_id = null ONLY - hidden from company users)
+        $super_admin = Role::firstOrCreate(['name' => 'super_admin']);
+        $cloud_manager = Role::firstOrCreate(['name' => 'cloud_manager']);
 
-        // Create Permissions
+        // Company-level roles (visible to company users)
+        $company_admin = Role::firstOrCreate(['name' => 'company_admin']);
+        $manager = Role::firstOrCreate(['name' => 'manager']);
+        $employee = Role::firstOrCreate(['name' => 'employee']);
+        $client = Role::firstOrCreate(['name' => 'client']);
+
+        // Remove old 'admin' role if exists (replaced by super_admin + company_admin)
+        Role::where('name', 'admin')->delete();
+
+        // ============================================================
+        // PERMISSIONS
+        // ============================================================
         $permissions = [
             // User Management
-            'view-users',
-            'create-users',
-            'edit-users',
-            'delete-users',
-            
+            'users-view',
+            'users-create',
+            'users-edit',
+            'users-delete',
+
             // Company Management
-            'view-companies',
-            'create-companies',
-            'edit-companies',
-            'delete-companies',
-            
+            'companies-view',
+            'companies-create',
+            'companies-edit',
+            'companies-delete',
+
+            // Department Management
+            'departments-view',
+            'departments-create',
+            'departments-edit',
+            'departments-delete',
+
             // Project Management
-            'view-projects',
-            'create-projects',
-            'edit-projects',
-            'delete-projects',
-            'view-all-projects',
-            
+            'projects-view',
+            'projects-create',
+            'projects-edit',
+            'projects-delete',
+
             // Task Management
-            'view-tasks',
-            'create-tasks',
-            'edit-tasks',
-            'delete-tasks',
-            'log-time',
-            
+            'tasks-view',
+            'tasks-create',
+            'tasks-edit',
+            'tasks-delete',
+            'tasks-log-time',
+
             // Ticket Management
-            'view-tickets',
-            'create-tickets',
-            'edit-tickets',
-            'delete-tickets',
-            'assign-tickets',
-            'close-tickets',
-            
+            'tickets-view',
+            'tickets-create',
+            'tickets-edit',
+            'tickets-delete',
+            'tickets-assign',
+            'tickets-close',
+
             // File Management
-            'view-files',
-            'upload-files',
-            'delete-files',
-            'approve-files',
-            
+            'files-view',
+            'files-create',
+            'files-edit',
+            'files-delete',
+            'files-approve',
+
             // Reports
-            'view-reports',
-            'export-reports',
-            
-            // Admin Panel
-            'view-admin-panel',
+            'reports-view',
+            'reports-create',
+            'reports-edit',
+            'reports-delete',
+            'reports-export',
+
+            // License & Usage (cloud_manager)
+            'licenses-view',
+            'licenses-manage',
+            'usage-view',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission]);
         }
 
-        // Assign permissions to roles
-        
-        // Admin gets all permissions
-        $admin->givePermissionTo(Permission::all());
-        
-        // Manager permissions
-        $manager->givePermissionTo([
-            'view-projects', 'create-projects', 'edit-projects', 'view-all-projects',
-            'view-tasks', 'create-tasks', 'edit-tasks', 'log-time',
-            'view-tickets', 'create-tickets', 'edit-tickets', 'assign-tickets', 'close-tickets',
-            'view-files', 'upload-files', 'approve-files',
+        // Remove old-style permissions (view-users, create-users, etc.)
+        $oldPermissions = [
+            'view-users', 'create-users', 'edit-users', 'delete-users',
+            'view-companies', 'create-companies', 'edit-companies', 'delete-companies',
+            'view-projects', 'create-projects', 'edit-projects', 'delete-projects', 'view-all-projects',
+            'view-tasks', 'create-tasks', 'edit-tasks', 'delete-tasks', 'log-time',
+            'view-tickets', 'create-tickets', 'edit-tickets', 'delete-tickets', 'assign-tickets', 'close-tickets',
+            'view-files', 'upload-files', 'delete-files', 'approve-files',
             'view-reports', 'export-reports',
-            'view-companies',
+            'view-admin-panel',
+        ];
+        Permission::whereIn('name', $oldPermissions)->delete();
+
+        // ============================================================
+        // ASSIGN PERMISSIONS TO ROLES
+        // ============================================================
+
+        // --- SUPER ADMIN: Everything ---
+        $super_admin->syncPermissions(Permission::all());
+
+        // --- CLOUD MANAGER: Cross-company management ---
+        $cloud_manager->syncPermissions([
+            'companies-view', 'companies-create', 'companies-edit', 'companies-delete',
+            'users-view',
+            'licenses-view', 'licenses-manage',
+            'usage-view',
+            'reports-view', 'reports-export',
         ]);
-        
-        // Employee permissions
-        $employee->givePermissionTo([
-            'view-projects', 'view-tasks', 'create-tasks', 'edit-tasks', 'log-time',
-            'view-tickets', 'create-tickets',
-            'view-files', 'upload-files',
+
+        // --- COMPANY ADMIN: Full access within their company ---
+        $company_admin->syncPermissions([
+            'users-view', 'users-create', 'users-edit', 'users-delete',
+            'companies-view', 'companies-edit',
+            'departments-view', 'departments-create', 'departments-edit', 'departments-delete',
+            'projects-view', 'projects-create', 'projects-edit', 'projects-delete',
+            'tasks-view', 'tasks-create', 'tasks-edit', 'tasks-delete', 'tasks-log-time',
+            'tickets-view', 'tickets-create', 'tickets-edit', 'tickets-delete', 'tickets-assign', 'tickets-close',
+            'files-view', 'files-create', 'files-edit', 'files-delete', 'files-approve',
+            'reports-view', 'reports-create', 'reports-export',
         ]);
-        
-        // Client permissions
-        $client->givePermissionTo([
-            'view-projects', 'view-tasks',
-            'view-tickets', 'create-tickets',
-            'view-files',
+
+        // --- MANAGER: Manage projects/tasks/tickets ---
+        $manager->syncPermissions([
+            'users-view',
+            'companies-view',
+            'departments-view', 'departments-create', 'departments-edit', 'departments-delete',
+            'projects-view', 'projects-create', 'projects-edit', 'projects-delete',
+            'tasks-view', 'tasks-create', 'tasks-edit', 'tasks-delete', 'tasks-log-time',
+            'tickets-view', 'tickets-create', 'tickets-edit', 'tickets-delete', 'tickets-assign', 'tickets-close',
+            'files-view', 'files-create', 'files-edit', 'files-delete', 'files-approve',
+            'reports-view', 'reports-create', 'reports-export',
+        ]);
+
+        // --- EMPLOYEE: Work on assigned items ---
+        $employee->syncPermissions([
+            'users-view',
+            'companies-view',
+            'departments-view',
+            'projects-view', 'projects-edit',
+            'tasks-view', 'tasks-create', 'tasks-edit', 'tasks-log-time',
+            'tickets-view', 'tickets-create', 'tickets-edit',
+            'files-view', 'files-create',
+            'reports-view',
+        ]);
+
+        // --- CLIENT: View only assigned items ---
+        $client->syncPermissions([
+            'companies-view',
+            'projects-view',
+            'tasks-view',
+            'tickets-view', 'tickets-create',
+            'files-view',
         ]);
 
         $this->command->info('Roles and permissions created successfully!');
+        $this->command->info('Roles: super_admin, cloud_manager, company_admin, manager, employee, client');
     }
 }

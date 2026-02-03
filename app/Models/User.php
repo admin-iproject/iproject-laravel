@@ -13,6 +13,21 @@ class User extends Authenticatable
     use HasFactory, Notifiable, SoftDeletes, HasRoles;
 
     /**
+     * User status constants
+     */
+    const STATUS_ACTIVE = 'active';
+    const STATUS_INACTIVE = 'inactive';
+    const STATUS_HIDDEN = 'hidden';
+
+    /**
+     * Permission scope constants
+     */
+    const SCOPE_ALL = 'all';           // Access all records
+    const SCOPE_ASSIGNED = 'assigned'; // Only assigned records
+    const SCOPE_OWN = 'own';          // Only owned records
+    const SCOPE_NONE = 'none';        // No access
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
@@ -23,6 +38,8 @@ class User extends Authenticatable
         'password',
         'parent_id',
         'type',
+        'status',
+        'permission_scopes',
         'first_name',
         'last_name',
         'company_id',
@@ -65,6 +82,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'type' => 'integer',
+            'permission_scopes' => 'array',
         ];
     }
 
@@ -74,6 +92,133 @@ class User extends Authenticatable
     public function getFullNameAttribute(): string
     {
         return "{$this->first_name} {$this->last_name}";
+    }
+
+    /**
+     * Check if user is active.
+     */
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Check if user is inactive (ghost).
+     */
+    public function isInactive(): bool
+    {
+        return $this->status === self::STATUS_INACTIVE;
+    }
+
+    /**
+     * Check if user is hidden.
+     */
+    public function isHidden(): bool
+    {
+        return $this->status === self::STATUS_HIDDEN;
+    }
+
+    /**
+     * Check if user can login.
+     */
+    public function canLogin(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Get the permission scope for a specific permission.
+     */
+    public function getPermissionScope(string $permission): string
+    {
+        return $this->permission_scopes[$permission] ?? self::SCOPE_NONE;
+    }
+
+    /**
+     * Set the permission scope for a specific permission.
+     */
+    public function setPermissionScope(string $permission, string $scope): void
+    {
+        $scopes = $this->permission_scopes ?? [];
+        $scopes[$permission] = $scope;
+        $this->permission_scopes = $scopes;
+        $this->save();
+    }
+
+    /**
+     * Check if user has permission with scope validation.
+     */
+    public function hasPermissionWithScope(string $permission, string $requiredScope = self::SCOPE_ALL): bool
+    {
+        // First check if user has the base permission
+        if (!$this->hasPermissionTo($permission)) {
+            return false;
+        }
+
+        // Check scope level
+        $userScope = $this->getPermissionScope($permission);
+
+        // Scope hierarchy: all > assigned > own > none
+        $scopeHierarchy = [
+            self::SCOPE_ALL => 3,
+            self::SCOPE_ASSIGNED => 2,
+            self::SCOPE_OWN => 1,
+            self::SCOPE_NONE => 0,
+        ];
+
+        return ($scopeHierarchy[$userScope] ?? 0) >= ($scopeHierarchy[$requiredScope] ?? 0);
+    }
+
+    /**
+     * Check if user can access a specific record based on scope.
+     */
+    public function canAccessRecord(string $permission, $record): bool
+    {
+        // First check if user has the permission at all
+        if (!$this->hasPermissionTo($permission)) {
+            return false;
+        }
+
+        $scope = $this->getPermissionScope($permission);
+
+        return match($scope) {
+            self::SCOPE_ALL => true,
+            self::SCOPE_ASSIGNED => $this->isAssignedTo($record),
+            self::SCOPE_OWN => $this->owns($record),
+            default => false,
+        };
+    }
+
+    /**
+     * Check if user is assigned to a record (project/task).
+     */
+    private function isAssignedTo($record): bool
+    {
+        if (method_exists($record, 'team')) {
+            return $record->team()->where('user_id', $this->id)->exists();
+        }
+        
+        if (method_exists($record, 'assignedUsers')) {
+            return $record->assignedUsers()->where('user_id', $this->id)->exists();
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user owns a record.
+     */
+    private function owns($record): bool
+    {
+        if (isset($record->owner_id)) {
+            return $record->owner_id === $this->id;
+        }
+
+        if (isset($record->user_id)) {
+            return $record->user_id === $this->id;
+        }
+
+        return false;
     }
 
     /**
@@ -173,7 +318,31 @@ class User extends Authenticatable
      */
     public function scopeActive($query)
     {
-        return $query->whereNull('deleted_at');
+        return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    /**
+     * Scope a query to only include inactive users (ghosts).
+     */
+    public function scopeInactive($query)
+    {
+        return $query->where('status', self::STATUS_INACTIVE);
+    }
+
+    /**
+     * Scope a query to only include hidden users.
+     */
+    public function scopeHidden($query)
+    {
+        return $query->where('status', self::STATUS_HIDDEN);
+    }
+
+    /**
+     * Scope a query to include users visible in lists (active + inactive, not hidden).
+     */
+    public function scopeVisibleInLists($query)
+    {
+        return $query->whereIn('status', [self::STATUS_ACTIVE, self::STATUS_INACTIVE]);
     }
 
     /**

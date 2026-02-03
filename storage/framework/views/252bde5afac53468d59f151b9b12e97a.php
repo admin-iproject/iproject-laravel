@@ -34,6 +34,41 @@
 
             </main>
         </div>
+
+        <!-- Auto-refresh CSRF token before expiry -->
+        <script>
+            // Refresh CSRF token every 10 minutes (600000ms)
+            setInterval(function() {
+                fetch('/refresh-csrf', {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('CSRF refresh failed');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update all CSRF token inputs
+                    document.querySelectorAll('input[name="_token"]').forEach(input => {
+                        input.value = data.token;
+                    });
+                    // Update meta tag
+                    const metaTag = document.querySelector('meta[name="csrf-token"]');
+                    if (metaTag) {
+                        metaTag.setAttribute('content', data.token);
+                    }
+                    console.log('CSRF token refreshed successfully');
+                })
+                .catch(error => {
+                    console.error('CSRF refresh error:', error);
+                    // Optionally redirect to login if refresh fails repeatedly
+                });
+            }, 600000); // 10 minutes
+        </script>
     </body>
-</html>
-<?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/layouts/app.blade.php ENDPATH**/ ?>
+</html><?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/layouts/app.blade.php ENDPATH**/ ?>

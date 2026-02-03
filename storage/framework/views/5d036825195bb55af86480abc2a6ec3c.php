@@ -414,7 +414,7 @@
         ['id' => 'departments', 'label' => 'Departments', 'count' => $company->departments->count()],
         ['id' => 'contacts', 'label' => 'Contacts', 'count' => $company->contacts->count()],
         ['id' => 'projects', 'label' => 'Projects', 'count' => $company->projects->count()],
-    ]]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+    ],'xData' => '{ departmentCount: '.e($company->departments->count()).' }']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('edge-tabs'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
@@ -425,7 +425,7 @@
         ['id' => 'departments', 'label' => 'Departments', 'count' => $company->departments->count()],
         ['id' => 'contacts', 'label' => 'Contacts', 'count' => $company->contacts->count()],
         ['id' => 'projects', 'label' => 'Projects', 'count' => $company->projects->count()],
-    ])]); ?>
+    ]),'x-data' => '{ departmentCount: '.e($company->departments->count()).' }']); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal93f4e6277b2105a41b876a6d7c3ef149)): ?>
@@ -448,13 +448,13 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['id' => 'departments','side' => 'right','width' => 'lg','title' => 'Departments for '.e($company->name).'']); ?>
-    <div x-data="departmentsManager(<?php echo e($company->id); ?>)" x-init="loadDepartments()">
+    <div x-data="departmentsManager(<?php echo e($company->id); ?>)" x-init="init()">
         <!-- Add Department Button -->
-        <div class="flex justify-end mb-4">
+        <div x-show="!showAddForm && !editingDept && !viewingDept" class="flex justify-end mb-4">
             <button 
-				@click="showAddForm = true"
-				class="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300"
-			>
+                @click="showAddForm = true"
+                class="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300"
+            >
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
@@ -462,21 +462,41 @@
             </button>
         </div>
 
-        <!-- Add/Edit Form -->
-        <div x-show="showAddForm || editingDept" class="mb-6 bg-gray-50 rounded-lg p-4">
-            <h4 class="font-semibold text-gray-900 mb-3" x-text="editingDept ? 'Edit Department' : 'New Department'"></h4>
+        <!-- Add/Edit/View Form -->
+        <div x-show="showAddForm || editingDept || viewingDept" class="mb-6 bg-gray-50 rounded-lg p-4">
+            <h4 class="font-semibold text-gray-900 mb-3" x-text="viewingDept ? 'View Department' : (editingDept ? 'Edit Department' : 'New Department')"></h4>
             
-            <form @submit.prevent="editingDept ? updateDepartment() : createDepartment()">
+            <form @submit.prevent="editingDept ? updateDepartment() : (viewingDept ? null : createDepartment())">
                 <div class="space-y-3">
+                    
                     <!-- Department Name -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Department Name *</label>
                         <input 
                             type="text" 
                             x-model="form.name"
-                            required
+                            :required="!viewingDept"
+                            :disabled="viewingDept"
                             class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            :class="{ 'bg-gray-100': viewingDept }"
                         >
+                    </div>
+
+                    <!-- Parent Department -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Parent Department</label>
+                        <select 
+                            x-model="form.parent_id"
+                            :disabled="viewingDept"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            :class="{ 'bg-gray-100': viewingDept }"
+                        >
+                            <option value="">None (Top Level)</option>
+                            <template x-for="dept in availableDepartments" :key="dept.id">
+                                <option :value="dept.id" x-text="dept.name" :selected="form.parent_id == dept.id"></option>
+                            </template>
+                        </select>
+                        <p x-show="!viewingDept" class="mt-1 text-xs text-gray-500">Empty fields below will inherit from parent or company</p>
                     </div>
 
                     <!-- Description -->
@@ -484,34 +504,156 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                         <textarea 
                             x-model="form.description"
+                            :disabled="viewingDept"
                             rows="2"
                             class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            :class="{ 'bg-gray-100': viewingDept }"
                         ></textarea>
                     </div>
 
-                    <!-- Phone -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                        <input 
-                            type="text" 
-                            x-model="form.phone"
-                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                        >
+                    <div class="border-t pt-3">
+                        <h5 class="text-sm font-semibold text-gray-700 mb-2">Contact Information</h5>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- Phone -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                <input 
+                                    type="text" 
+                                    x-model="form.phone"
+                                    :disabled="viewingDept"
+                                    :placeholder="viewingDept ? '' : 'Inherits if empty'"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    :class="{ 'bg-gray-100': viewingDept }"
+                                >
+                            </div>
+
+                            <!-- Fax -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Fax</label>
+                                <input 
+                                    type="text" 
+                                    x-model="form.fax"
+                                    :disabled="viewingDept"
+                                    :placeholder="viewingDept ? '' : 'Inherits if empty'"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    :class="{ 'bg-gray-100': viewingDept }"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- URL -->
+                        <div class="mt-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                            <input 
+                                type="url" 
+                                x-model="form.url"
+                                :disabled="viewingDept"
+                                :placeholder="viewingDept ? '' : 'https://...'"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                :class="{ 'bg-gray-100': viewingDept }"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="border-t pt-3">
+                        <h5 class="text-sm font-semibold text-gray-700 mb-2">Address</h5>
+                        
+                        <!-- Address Line 1 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+                            <input 
+                                type="text" 
+                                x-model="form.address_line1"
+                                :disabled="viewingDept"
+                                :placeholder="viewingDept ? '' : 'Inherits if empty'"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                :class="{ 'bg-gray-100': viewingDept }"
+                            >
+                        </div>
+
+                        <!-- Address Line 2 -->
+                        <div class="mt-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+                            <input 
+                                type="text" 
+                                x-model="form.address_line2"
+                                :disabled="viewingDept"
+                                :placeholder="viewingDept ? '' : 'Inherits if empty'"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                :class="{ 'bg-gray-100': viewingDept }"
+                            >
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3 mt-3">
+                            <!-- City -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                <input 
+                                    type="text" 
+                                    x-model="form.city"
+                                    :disabled="viewingDept"
+                                    :placeholder="viewingDept ? '' : 'Inherits...'"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    :class="{ 'bg-gray-100': viewingDept }"
+                                >
+                            </div>
+
+                            <!-- State -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                                <input 
+                                    type="text" 
+                                    x-model="form.state"
+                                    :disabled="viewingDept"
+                                    :placeholder="viewingDept ? '' : 'Inherits...'"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    :class="{ 'bg-gray-100': viewingDept }"
+                                >
+                            </div>
+
+                            <!-- ZIP -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+                                <input 
+                                    type="text" 
+                                    x-model="form.zip"
+                                    :disabled="viewingDept"
+                                    :placeholder="viewingDept ? '' : 'Inherits...'"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    :class="{ 'bg-gray-100': viewingDept }"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Country -->
+                        <div class="mt-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                            <input 
+                                type="text" 
+                                x-model="form.country"
+                                :disabled="viewingDept"
+                                :placeholder="viewingDept ? '' : 'Inherits if empty'"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                :class="{ 'bg-gray-100': viewingDept }"
+                            >
+                        </div>
                     </div>
 
                     <!-- Buttons -->
-                    <div class="flex justify-end gap-2 pt-2">
+                    <div class="flex justify-end gap-2 pt-2 border-t">
                         <button 
                             type="button"
                             @click="cancelForm()"
                             class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300"
                         >
-                            Cancel
+                            <span x-text="viewingDept ? 'Close' : 'Cancel'"></span>
                         </button>
                         <button 
-							type="submit"
-							class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300"
->
+                            x-show="!viewingDept"
+                            type="submit"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300"
+                        >
                             <span x-text="editingDept ? 'Update' : 'Create'"></span>
                         </button>
                     </div>
@@ -537,25 +679,38 @@
 
         <!-- Departments List -->
         <div x-show="!loading && departments.length > 0">
-            <div class="space-y-3">
+            <div class="space-y-2">
                 <template x-for="dept in departments" :key="dept.id">
-                    <div class="border rounded-lg p-4 hover:bg-gray-50">
+                    <div class="border rounded-lg p-4 hover:bg-gray-50" :style="'margin-left: ' + (dept.level * 24) + 'px'">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
                                 <h4 class="font-semibold text-gray-900" x-text="dept.name"></h4>
+                                <p x-show="dept.parent" class="text-xs text-gray-500 mt-1">
+                                    ↳ Child of: <span x-text="dept.parent?.name"></span>
+                                </p>
                                 <p x-show="dept.description" class="text-sm text-gray-600 mt-1" x-text="dept.description"></p>
                                 
                                 <div class="mt-2 space-y-1 text-sm text-gray-600">
                                     <p x-show="dept.phone">
                                         📞 <span x-text="dept.phone"></span>
                                     </p>
-                                    <p x-show="dept.owner" class="text-xs text-gray-500">
-                                        Owner: <span x-text="dept.owner?.first_name + ' ' + dept.owner?.last_name"></span>
+                                    <p x-show="dept.address_line1" class="text-xs">
+                                        📍 <span x-text="dept.address_line1 + (dept.city ? ', ' + dept.city : '')"></span>
                                     </p>
                                 </div>
                             </div>
                             
                             <div class="flex gap-2 ml-4">
+                                <button 
+                                    @click="viewDepartment(dept)"
+                                    class="text-gray-600 hover:text-gray-800"
+                                    title="View"
+                                >
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                </button>
                                 <button 
                                     @click="editDepartment(dept)"
                                     class="text-blue-600 hover:text-blue-800"
@@ -606,15 +761,30 @@ function departmentsManager(companyId) {
     return {
         companyId: companyId,
         departments: [],
+        availableDepartments: [],
         loading: false,
         error: null,
         success: null,
         showAddForm: false,
         editingDept: null,
+        viewingDept: null,
         form: {
             name: '',
+            parent_id: '',
             description: '',
             phone: '',
+            fax: '',
+            url: '',
+            address_line1: '',
+            address_line2: '',
+            city: '',
+            state: '',
+            zip: '',
+            country: '',
+        },
+
+        init() {
+            this.loadDepartments();
         },
 
         async loadDepartments() {
@@ -628,11 +798,8 @@ function departmentsManager(companyId) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                // Get as array buffer to strip BOM bytes
                 const buffer = await response.arrayBuffer();
                 let bytes = new Uint8Array(buffer);
-                
-                // Strip all leading BOM sequences (EF BB BF)
                 let start = 0;
                 while (start < bytes.length - 2 && 
                        bytes[start] === 0xEF && 
@@ -640,19 +807,63 @@ function departmentsManager(companyId) {
                        bytes[start + 2] === 0xBF) {
                     start += 3;
                 }
-                
-                // Convert cleaned bytes to text
                 const decoder = new TextDecoder('utf-8');
                 const text = decoder.decode(bytes.slice(start));
-                
                 const data = JSON.parse(text);
-                this.departments = data.departments || [];
+                
+                const rawDepartments = data.departments || [];
+                
+                // Sort departments hierarchically
+                this.departments = this.sortDepartmentsHierarchically(rawDepartments);
+                this.availableDepartments = rawDepartments;
+                
+                // Update tab count
+                this.updateTabCount(rawDepartments.length);
+                
                 console.log('Loaded departments:', this.departments);
             } catch (err) {
                 this.error = 'Failed to load departments: ' + err.message;
                 console.error('Load error:', err);
             } finally {
                 this.loading = false;
+            }
+        },
+
+        sortDepartmentsHierarchically(departments) {
+            // Build a map for quick lookup
+            const deptMap = {};
+            departments.forEach(dept => {
+                deptMap[dept.id] = { ...dept, children: [], level: 0 };
+            });
+            
+            // Build the tree and calculate levels
+            const roots = [];
+            departments.forEach(dept => {
+                const deptNode = deptMap[dept.id];
+                if (dept.parent_id && deptMap[dept.parent_id]) {
+                    deptMap[dept.parent_id].children.push(deptNode);
+                    deptNode.level = deptMap[dept.parent_id].level + 1;
+                } else {
+                    roots.push(deptNode);
+                }
+            });
+            
+            // Flatten the tree in hierarchical order
+            const result = [];
+            const addToResult = (node) => {
+                result.push(node);
+                node.children.forEach(child => addToResult(child));
+            };
+            
+            roots.forEach(root => addToResult(root));
+            
+            return result;
+        },
+
+        updateTabCount(count) {
+            const tabElement = document.querySelector('[data-slideout-tab="departments"] .tab-count');
+            if (tabElement) {
+                tabElement.textContent = count;
             }
         },
 
@@ -671,7 +882,6 @@ function departmentsManager(companyId) {
                     body: JSON.stringify(this.form)
                 });
 
-                // Strip BOM from response
                 const buffer = await response.arrayBuffer();
                 let bytes = new Uint8Array(buffer);
                 let start = 0;
@@ -684,7 +894,7 @@ function departmentsManager(companyId) {
                 
                 if (response.ok) {
                     this.success = 'Department created successfully';
-                    this.departments.push(data.department);
+                    await this.loadDepartments();
                     this.cancelForm();
                     setTimeout(() => this.success = null, 3000);
                 } else {
@@ -696,14 +906,58 @@ function departmentsManager(companyId) {
             }
         },
 
+        viewDepartment(dept) {
+            this.viewingDept = dept;
+            this.form = {
+                name: dept.name,
+                parent_id: dept.parent_id || '',
+                description: dept.description || '',
+                phone: dept.phone || '',
+                fax: dept.fax || '',
+                url: dept.url || '',
+                address_line1: dept.address_line1 || '',
+                address_line2: dept.address_line2 || '',
+                city: dept.city || '',
+                state: dept.state || '',
+                zip: dept.zip || '',
+                country: dept.country || '',
+            };
+            this.showAddForm = false;
+            this.editingDept = null;
+            
+            this.$nextTick(() => {
+                const slideoutContent = this.$el.closest('.overflow-y-scroll');
+                if (slideoutContent) {
+                    slideoutContent.scrollTop = 0;
+                }
+            });
+        },
+
         editDepartment(dept) {
             this.editingDept = dept;
             this.form = {
                 name: dept.name,
+                parent_id: dept.parent_id || '',
                 description: dept.description || '',
                 phone: dept.phone || '',
+                fax: dept.fax || '',
+                url: dept.url || '',
+                address_line1: dept.address_line1 || '',
+                address_line2: dept.address_line2 || '',
+                city: dept.city || '',
+                state: dept.state || '',
+                zip: dept.zip || '',
+                country: dept.country || '',
             };
             this.showAddForm = false;
+            this.viewingDept = null;
+            
+            this.$nextTick(() => {
+                const slideoutContent = this.$el.closest('.overflow-y-scroll');
+                if (slideoutContent) {
+                    slideoutContent.scrollTop = 0;
+                }
+            });
         },
 
         async updateDepartment() {
@@ -721,7 +975,6 @@ function departmentsManager(companyId) {
                     body: JSON.stringify(this.form)
                 });
 
-                // Strip BOM from response
                 const buffer = await response.arrayBuffer();
                 let bytes = new Uint8Array(buffer);
                 let start = 0;
@@ -734,10 +987,7 @@ function departmentsManager(companyId) {
                 
                 if (response.ok) {
                     this.success = 'Department updated successfully';
-                    const index = this.departments.findIndex(d => d.id === this.editingDept.id);
-                    if (index !== -1) {
-                        this.departments[index] = data.department;
-                    }
+                    await this.loadDepartments();
                     this.cancelForm();
                     setTimeout(() => this.success = null, 3000);
                 } else {
@@ -766,7 +1016,6 @@ function departmentsManager(companyId) {
                     }
                 });
 
-                // Strip BOM from response
                 const buffer = await response.arrayBuffer();
                 let bytes = new Uint8Array(buffer);
                 let start = 0;
@@ -779,7 +1028,7 @@ function departmentsManager(companyId) {
                 
                 if (response.ok) {
                     this.success = 'Department deleted successfully';
-                    this.departments = this.departments.filter(d => d.id !== deptId);
+                    await this.loadDepartments();
                     setTimeout(() => this.success = null, 3000);
                 } else {
                     this.error = data.error || data.message || 'Failed to delete department';
@@ -793,10 +1042,20 @@ function departmentsManager(companyId) {
         cancelForm() {
             this.showAddForm = false;
             this.editingDept = null;
+            this.viewingDept = null;
             this.form = {
                 name: '',
+                parent_id: '',
                 description: '',
                 phone: '',
+                fax: '',
+                url: '',
+                address_line1: '',
+                address_line2: '',
+                city: '',
+                state: '',
+                zip: '',
+                country: '',
             };
         }
     }

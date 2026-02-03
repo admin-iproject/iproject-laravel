@@ -10,7 +10,30 @@ class DepartmentController extends Controller
 {
     public function index(Company $company)
     {
-        $departments = $company->departments()->with('owner')->get();
+        // Check authorization
+        $this->authorize('viewAny', Department::class);
+
+        $departments = $company->departments()
+            ->with(['owner', 'parent'])
+            ->get();
+        
+        return response()->json([
+            'departments' => $departments
+        ]);
+    }
+
+    /**
+     * Get department options for dropdown (parent selector)
+     */
+    public function options(Company $company)
+    {
+        // Check authorization
+        $this->authorize('viewAny', Department::class);
+
+        $departments = $company->departments()
+            ->select('id', 'name', 'parent_id')
+            ->orderBy('name')
+            ->get();
         
         return response()->json([
             'departments' => $departments
@@ -19,6 +42,9 @@ class DepartmentController extends Controller
 
     public function store(Request $request, Company $company)
     {
+        // Check authorization
+        $this->authorize('create', Department::class);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|exists:departments,id',
@@ -36,11 +62,25 @@ class DepartmentController extends Controller
             'type' => 'nullable|integer',
         ]);
 
-        $department = $company->departments()->create($validated);
+        // Create department
+        $department = new Department($validated);
+        $department->company_id = $company->id;
+        
+        // Load relationships needed for inheritance
+        $department->setRelation('company', $company);
+        if ($validated['parent_id'] ?? null) {
+            $parent = Department::find($validated['parent_id']);
+            $department->setRelation('parent', $parent);
+        }
+        
+        // Apply inherited defaults for null fields
+        $department->applyInheritedDefaults();
+        
+        $department->save();
 
         return response()->json([
             'success' => true,
-            'department' => $department->load('owner'),
+            'department' => $department->load(['owner', 'parent']),
             'message' => 'Department created successfully'
         ]);
     }
@@ -51,6 +91,9 @@ class DepartmentController extends Controller
             return response()->json(['error' => 'Department not found'], 404);
         }
 
+        // Check authorization
+        $this->authorize('update', $department);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|exists:departments,id',
@@ -68,17 +111,27 @@ class DepartmentController extends Controller
             'type' => 'nullable|integer',
         ]);
 
+        // Prevent circular parent relationship
         if (isset($validated['parent_id']) && $validated['parent_id'] == $department->id) {
             return response()->json([
                 'error' => 'A department cannot be its own parent'
             ], 422);
         }
 
-        $department->update($validated);
+        // Update fields
+        $department->fill($validated);
+        
+        // Load relationships for inheritance
+        $department->load(['company', 'parent']);
+        
+        // Apply inherited defaults for any newly null fields
+        $department->applyInheritedDefaults();
+        
+        $department->save();
 
         return response()->json([
             'success' => true,
-            'department' => $department->load('owner'),
+            'department' => $department->load(['owner', 'parent']),
             'message' => 'Department updated successfully'
         ]);
     }
@@ -88,6 +141,9 @@ class DepartmentController extends Controller
         if ($department->company_id !== $company->id) {
             return response()->json(['error' => 'Department not found'], 404);
         }
+
+        // Check authorization
+        $this->authorize('delete', $department);
 
         if ($department->children()->count() > 0) {
             return response()->json([

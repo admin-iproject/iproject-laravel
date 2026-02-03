@@ -1,0 +1,397 @@
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Add New User
+        </h2>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+            
+            <div class="mb-6">
+                <a href="{{ route('users.index') }}" class="text-primary-600 hover:text-primary-900">
+                    ← Back to Users
+                </a>
+            </div>
+
+            @if($errors->any())
+            <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                <ul class="list-disc list-inside">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+            @endif
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <form method="POST" action="{{ route('users.store') }}">
+                    @csrf
+
+                    <!-- Basic Information -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Username -->
+                            <div>
+                                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Username *
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="username" 
+                                    id="username"
+                                    value="{{ old('username') }}"
+                                    required
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+
+                            <!-- Email -->
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Email *
+                                </label>
+                                <input 
+                                    type="email" 
+                                    name="email" 
+                                    id="email"
+                                    value="{{ old('email') }}"
+                                    required
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+
+                            <!-- First Name -->
+                            <div>
+                                <label for="first_name" class="block text-sm font-medium text-gray-700 mb-1">
+                                    First Name *
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="first_name" 
+                                    id="first_name"
+                                    value="{{ old('first_name') }}"
+                                    required
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+
+                            <!-- Last Name -->
+                            <div>
+                                <label for="last_name" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Last Name *
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="last_name" 
+                                    id="last_name"
+                                    value="{{ old('last_name') }}"
+                                    required
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+
+                            <!-- Company -->
+                            <div>
+                                <label for="company_id" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Company
+                                </label>
+                                @if(auth()->user()->company_id === null)
+                                    <!-- Super admin / cloud manager sees all companies -->
+                                    <select 
+                                        name="company_id" 
+                                        id="company_id"
+                                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    >
+                                        <option value="">-- None (System User) --</option>
+                                        @foreach($companies as $company)
+                                            <option value="{{ $company->id }}" {{ old('company_id') == $company->id ? 'selected' : '' }}>
+                                                {{ $company->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <!-- Company-level users can only assign their own company -->
+                                    <input 
+                                        type="text" 
+                                        value="{{ auth()->user()->company->name }}" 
+                                        disabled 
+                                        class="w-full rounded-md border-gray-200 bg-gray-100 shadow-sm text-gray-600"
+                                    >
+                                    <input type="hidden" name="company_id" value="{{ auth()->user()->company_id }}">
+                                @endif
+                            </div>
+
+                            <!-- Department -->
+                            <div>
+                                <label for="department_id" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Department
+                                </label>
+                                <select 
+                                    name="department_id" 
+                                    id="department_id"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                                    <option value="">-- Select Department --</option>
+                                    @foreach($departments as $department)
+                                        <option value="{{ $department->id }}" {{ old('department_id') == $department->id ? 'selected' : '' }}>
+                                            {{ $department->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <!-- Status -->
+                            <div>
+                                <label for="status" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Status *
+                                </label>
+                                <select 
+                                    name="status" 
+                                    id="status"
+                                    required
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                                    <option value="active" {{ old('status', 'active') == 'active' ? 'selected' : '' }}>Active</option>
+                                    <option value="inactive" {{ old('status') == 'inactive' ? 'selected' : '' }}>Inactive (Ghost)</option>
+                                    <option value="hidden" {{ old('status') == 'hidden' ? 'selected' : '' }}>Hidden</option>
+                                </select>
+                                <p class="mt-1 text-xs text-gray-500">Active: Can login | Inactive: Shows in lists but cannot login | Hidden: Cannot login and hidden from lists</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="mb-6 border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Password</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Password -->
+                            <div>
+                                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Password *
+                                </label>
+                                <input 
+                                    type="password" 
+                                    name="password" 
+                                    id="password"
+                                    required
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+
+                            <!-- Password Confirmation -->
+                            <div>
+                                <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Confirm Password *
+                                </label>
+                                <input 
+                                    type="password" 
+                                    name="password_confirmation" 
+                                    id="password_confirmation"
+                                    required
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information -->
+                    <div class="mb-6 border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- Phone -->
+                            <div>
+                                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Work Phone
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="phone" 
+                                    id="phone"
+                                    value="{{ old('phone') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+
+                            <!-- Home Phone -->
+                            <div>
+                                <label for="home_phone" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Home Phone
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="home_phone" 
+                                    id="home_phone"
+                                    value="{{ old('home_phone') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+
+                            <!-- Mobile -->
+                            <div>
+                                <label for="mobile" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Mobile
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="mobile" 
+                                    id="mobile"
+                                    value="{{ old('mobile') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address -->
+                    <div class="mb-6 border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Address</h3>
+                        
+                        <div class="space-y-4">
+                            <!-- Address Line 1 -->
+                            <div>
+                                <label for="address_line1" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Address Line 1
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="address_line1" 
+                                    id="address_line1"
+                                    value="{{ old('address_line1') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+
+                            <!-- Address Line 2 -->
+                            <div>
+                                <label for="address_line2" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Address Line 2
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="address_line2" 
+                                    id="address_line2"
+                                    value="{{ old('address_line2') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <!-- City -->
+                                <div class="md:col-span-2">
+                                    <label for="city" class="block text-sm font-medium text-gray-700 mb-1">
+                                        City
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        name="city" 
+                                        id="city"
+                                        value="{{ old('city') }}"
+                                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    >
+                                </div>
+
+                                <!-- State -->
+                                <div>
+                                    <label for="state" class="block text-sm font-medium text-gray-700 mb-1">
+                                        State
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        name="state" 
+                                        id="state"
+                                        value="{{ old('state') }}"
+                                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    >
+                                </div>
+
+                                <!-- ZIP -->
+                                <div>
+                                    <label for="zip" class="block text-sm font-medium text-gray-700 mb-1">
+                                        ZIP
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        name="zip" 
+                                        id="zip"
+                                        value="{{ old('zip') }}"
+                                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    >
+                                </div>
+                            </div>
+
+                            <!-- Country -->
+                            <div>
+                                <label for="country" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Country
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="country" 
+                                    id="country"
+                                    value="{{ old('country') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Info -->
+                    <div class="mb-6 border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Additional Information</h3>
+                        
+                        <div>
+                            <label for="birthday" class="block text-sm font-medium text-gray-700 mb-1">
+                                Birthday
+                            </label>
+                            <input 
+                                type="text" 
+                                name="birthday" 
+                                id="birthday"
+                                value="{{ old('birthday') }}"
+                                placeholder="MM/DD/YYYY"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Roles -->
+                    <div class="mb-6 border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Roles</h3>
+                        
+                        <div class="space-y-2">
+                            @foreach($roles as $role)
+                                @if(auth()->user()->company_id === null || !in_array($role->name, ['super_admin', 'cloud_manager']))
+                                <label class="flex items-center">
+                                    <input 
+                                        type="checkbox" 
+                                        name="roles[]" 
+                                        value="{{ $role->name }}"
+                                        {{ is_array(old('roles')) && in_array($role->name, old('roles')) ? 'checked' : '' }}
+                                        class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    >
+                                    <span class="ml-2 text-sm text-gray-700">{{ ucfirst(str_replace('_', ' ', $role->name)) }}</span>
+                                </label>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex justify-end gap-2 border-t pt-6">
+                        <a href="{{ route('users.index') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300">
+                            Cancel
+                        </a>
+                        <button type="submit" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300">
+                            Create User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</x-app-layout>

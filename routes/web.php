@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -14,16 +15,31 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    // CSRF Token Refresh
+    Route::get('/refresh-csrf', function () {
+        return response()->json([
+            'token' => csrf_token()
+        ]);
+    })->name('refresh-csrf');
+    
     // Companies Module
     Route::resource('companies', CompanyController::class);
     
     // Departments (nested under companies)
     Route::prefix('companies/{company}')->group(function () {
         Route::get('departments', [DepartmentController::class, 'index'])->name('departments.index');
+        Route::get('departments/options', [DepartmentController::class, 'options'])->name('departments.options');
         Route::post('departments', [DepartmentController::class, 'store'])->name('departments.store');
         Route::put('departments/{department}', [DepartmentController::class, 'update'])->name('departments.update');
         Route::delete('departments/{department}', [DepartmentController::class, 'destroy'])->name('departments.destroy');
     });
+    
+    // Users Module
+    Route::resource('users', UserController::class);
+    Route::post('users/{user}/make-active', [UserController::class, 'makeActive'])->name('users.make-active');
+    Route::post('users/{user}/make-inactive', [UserController::class, 'makeInactive'])->name('users.make-inactive');
+    Route::post('users/{user}/make-hidden', [UserController::class, 'makeHidden'])->name('users.make-hidden');
+    Route::get('companies/{company}/departments-list', [UserController::class, 'getDepartments'])->name('companies.departments');
     
     // Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
