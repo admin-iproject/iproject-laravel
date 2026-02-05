@@ -26,7 +26,7 @@ class UserController extends Controller
 
         $status = $request->get('status', 'active');
         $currentUser = auth()->user();
-        
+
         $query = User::with(['company', 'department', 'roles'])
             ->orderBy('last_name')
             ->orderBy('first_name');
@@ -87,9 +87,9 @@ class UserController extends Controller
         }
 
         $counts = [
-            'active' => (clone $countsQuery)->active()->count(),
+            'active'   => (clone $countsQuery)->active()->count(),
             'inactive' => (clone $countsQuery)->inactive()->count(),
-            'hidden' => (clone $countsQuery)->hidden()->count(),
+            'hidden'   => (clone $countsQuery)->hidden()->count(),
         ];
 
         return view('users.index', compact('users', 'status', 'counts'));
@@ -129,28 +129,45 @@ class UserController extends Controller
 
         $currentUser = auth()->user();
 
+        // ---------------------------------------------------------------
+        // LICENSE CHECK – block creation when the target company is full
+        // ---------------------------------------------------------------
+        $targetCompanyId = $currentUser->company_id ?? $request->company_id;
+
+        if ($targetCompanyId) {
+            $company = Company::find($targetCompanyId);
+
+            if ($company && !$company->hasAvailableLicense()) {
+                return redirect()->route('users.index')
+                    ->with('error', 'License limit reached. ' . $company->name .
+                          ' has ' . $company->getLicenseUsage() .
+                          ' active users. Contact your administrator to increase the license.');
+            }
+        }
+        // ---------------------------------------------------------------
+
         $validated = $request->validate([
-            'username' => 'required|string|max:70|unique:users,username',
-            'email' => 'required|email|max:255|unique:users,email',
-            'password' => 'required|string|min:8|confirmed',
-            'first_name' => 'required|string|max:50',
-            'last_name' => 'required|string|max:50',
-            'company_id' => 'nullable|exists:companies,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'status' => 'nullable|in:active,inactive,hidden',
-            'type' => 'nullable|integer',
-            'phone' => 'nullable|string|max:30',
-            'home_phone' => 'nullable|string|max:30',
-            'mobile' => 'nullable|string|max:30',
-            'address_line1' => 'nullable|string|max:100',
-            'address_line2' => 'nullable|string|max:100',
-            'city' => 'nullable|string|max:50',
-            'state' => 'nullable|string|max:50',
-            'zip' => 'nullable|string|max:20',
-            'country' => 'nullable|string|max:50',
-            'birthday' => 'nullable|string|max:20',
-            'roles' => 'nullable|array',
-            'roles.*' => 'exists:roles,name',
+            'username'       => 'required|string|max:70|unique:users,username',
+            'email'          => 'required|email|max:255|unique:users,email',
+            'password'       => 'required|string|min:8|confirmed',
+            'first_name'     => 'required|string|max:50',
+            'last_name'      => 'required|string|max:50',
+            'company_id'     => 'nullable|exists:companies,id',
+            'department_id'  => 'nullable|exists:departments,id',
+            'status'         => 'nullable|in:active,inactive,hidden',
+            'type'           => 'nullable|integer',
+            'phone'          => 'nullable|string|max:30',
+            'home_phone'     => 'nullable|string|max:30',
+            'mobile'         => 'nullable|string|max:30',
+            'address_line1'  => 'nullable|string|max:100',
+            'address_line2'  => 'nullable|string|max:100',
+            'city'           => 'nullable|string|max:50',
+            'state'          => 'nullable|string|max:50',
+            'zip'            => 'nullable|string|max:20',
+            'country'        => 'nullable|string|max:50',
+            'birthday'       => 'nullable|string|max:20',
+            'roles'          => 'nullable|array',
+            'roles.*'        => 'exists:roles,name',
         ]);
 
         // Company-level users can only create users in their own company
@@ -159,14 +176,14 @@ class UserController extends Controller
         }
 
         $validated['password'] = Hash::make($validated['password']);
-        $validated['status'] = $validated['status'] ?? User::STATUS_ACTIVE;
+        $validated['status']   = $validated['status'] ?? User::STATUS_ACTIVE;
 
         $user = User::create($validated);
 
-        // Assign roles - sanitize to only allowed roles
+        // Assign roles – sanitize to only allowed roles
         if ($request->has('roles')) {
-            $allowedRoles = $this->getAvailableRoles($currentUser)->pluck('name')->toArray();
-            $sanitizedRoles = array_intersect($request->roles, $allowedRoles);
+            $allowedRoles    = $this->getAvailableRoles($currentUser)->pluck('name')->toArray();
+            $sanitizedRoles  = array_intersect($request->roles, $allowedRoles);
             $user->syncRoles($sanitizedRoles);
         }
 
@@ -182,12 +199,12 @@ class UserController extends Controller
         $this->authorize('view', $user);
 
         $user->load(['company', 'department', 'parent', 'roles', 'permissions']);
-        
+
         $stats = [
-            'owned_projects' => $user->ownedProjects()->count(),
-            'team_projects' => $user->projects()->count(),
-            'owned_tasks' => $user->ownedTasks()->count(),
-            'assigned_tasks' => $user->assignedTasks()->count(),
+            'owned_projects'   => $user->ownedProjects()->count(),
+            'team_projects'    => $user->projects()->count(),
+            'owned_tasks'      => $user->ownedTasks()->count(),
+            'assigned_tasks'   => $user->assignedTasks()->count(),
         ];
 
         return view('users.show', compact('user', 'stats'));
@@ -229,27 +246,27 @@ class UserController extends Controller
         $currentUser = auth()->user();
 
         $validated = $request->validate([
-            'username' => ['required', 'string', 'max:70', Rule::unique('users')->ignore($user->id)],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'password' => 'nullable|string|min:8|confirmed',
-            'first_name' => 'required|string|max:50',
-            'last_name' => 'required|string|max:50',
-            'company_id' => 'nullable|exists:companies,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'status' => 'nullable|in:active,inactive,hidden',
-            'type' => 'nullable|integer',
-            'phone' => 'nullable|string|max:30',
-            'home_phone' => 'nullable|string|max:30',
-            'mobile' => 'nullable|string|max:30',
-            'address_line1' => 'nullable|string|max:100',
-            'address_line2' => 'nullable|string|max:100',
-            'city' => 'nullable|string|max:50',
-            'state' => 'nullable|string|max:50',
-            'zip' => 'nullable|string|max:20',
-            'country' => 'nullable|string|max:50',
-            'birthday' => 'nullable|string|max:20',
-            'roles' => 'nullable|array',
-            'roles.*' => 'exists:roles,name',
+            'username'       => ['required', 'string', 'max:70', Rule::unique('users')->ignore($user->id)],
+            'email'          => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'password'       => 'nullable|string|min:8|confirmed',
+            'first_name'     => 'required|string|max:50',
+            'last_name'      => 'required|string|max:50',
+            'company_id'     => 'nullable|exists:companies,id',
+            'department_id'  => 'nullable|exists:departments,id',
+            'status'         => 'nullable|in:active,inactive,hidden',
+            'type'           => 'nullable|integer',
+            'phone'          => 'nullable|string|max:30',
+            'home_phone'     => 'nullable|string|max:30',
+            'mobile'         => 'nullable|string|max:30',
+            'address_line1'  => 'nullable|string|max:100',
+            'address_line2'  => 'nullable|string|max:100',
+            'city'           => 'nullable|string|max:50',
+            'state'          => 'nullable|string|max:50',
+            'zip'            => 'nullable|string|max:20',
+            'country'        => 'nullable|string|max:50',
+            'birthday'       => 'nullable|string|max:20',
+            'roles'          => 'nullable|array',
+            'roles.*'        => 'exists:roles,name',
         ]);
 
         // Company-level users cannot change company_id
@@ -266,10 +283,10 @@ class UserController extends Controller
 
         $user->update($validated);
 
-        // Sync roles - sanitize to only allowed roles
+        // Sync roles – sanitize to only allowed roles
         if ($request->has('roles')) {
-            $allowedRoles = $this->getAvailableRoles($currentUser)->pluck('name')->toArray();
-            $sanitizedRoles = array_intersect($request->roles, $allowedRoles);
+            $allowedRoles    = $this->getAvailableRoles($currentUser)->pluck('name')->toArray();
+            $sanitizedRoles  = array_intersect($request->roles, $allowedRoles);
             $user->syncRoles($sanitizedRoles);
         }
 
@@ -317,11 +334,27 @@ class UserController extends Controller
     }
 
     /**
-     * Change user status to active
+     * Change user status to active.
+     * Blocked when the user's company has no available license slot.
      */
     public function makeActive(User $user)
     {
         $this->authorize('changeStatus', $user);
+
+        // ---------------------------------------------------------------
+        // LICENSE CHECK – cannot activate when the company is at its cap
+        // ---------------------------------------------------------------
+        if ($user->company_id !== null) {
+            $company = $user->company;
+
+            if ($company && !$company->hasAvailableLicense()) {
+                return redirect()->route('users.index', ['status' => $user->status])
+                    ->with('error', 'License limit reached. Cannot activate user. ' .
+                          $company->name . ' has ' . $company->getLicenseUsage() .
+                          ' active users. Contact your administrator to increase the license.');
+            }
+        }
+        // ---------------------------------------------------------------
 
         $user->update(['status' => User::STATUS_ACTIVE]);
 

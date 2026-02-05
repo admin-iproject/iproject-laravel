@@ -5,7 +5,7 @@
         </h2>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-2">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
             <div class="mb-6">
@@ -23,31 +23,57 @@
                         <div class="mb-8">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">Basic Information</h3>
 
-                            <!-- Company Name -->
-                            <div class="mb-4">
-                                <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Company Name <span class="text-red-600">*</span>
-                                </label>
-                                <input type="text" name="name" id="name" 
-                                       value="{{ old('name') }}" 
-                                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" 
-                                       required autofocus>
-                                @error('name')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
-                            </div>
+                            <!-- Two-column layout: Company Name + License (left) | Logo (right) -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                <!-- LEFT COLUMN: Company Name + License -->
+                                <div class="space-y-4">
+                                    <!-- Company Name -->
+                                    <div>
+                                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Company Name <span class="text-red-600">*</span>
+                                        </label>
+                                        <input type="text" name="name" id="name" 
+                                               value="{{ old('name') }}" 
+                                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" 
+                                               required autofocus>
+                                        @error('name')
+                                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
 
-                            <!-- Logo Upload -->
-                            <div class="mb-4">
-                                <label for="logo" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Company Logo
-                                </label>
-                                <input type="file" name="logo" id="logo" accept="image/*"
-                                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
-                                <p class="mt-1 text-sm text-gray-500">Max 2MB, JPG, PNG, or GIF</p>
-                                @error('logo')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
+                                    <!-- Number of Licensed Users (Super Admin Only) -->
+                                    @if(auth()->user()->company_id === null)
+                                    <div>
+                                        <label for="num_of_licensed_users" class="block text-sm font-medium text-gray-700 mb-2">
+                                            # of User Licenses <span class="text-red-600">*</span>
+                                        </label>
+                                        <input type="number" name="num_of_licensed_users" id="num_of_licensed_users" 
+                                               value="{{ old('num_of_licensed_users', 1) }}" 
+                                               min="1"
+                                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" 
+                                               required>
+                                        <p class="mt-1 text-sm text-gray-500">
+                                            Default: 1 license
+                                        </p>
+                                        @error('num_of_licensed_users')
+                                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                    @endif
+                                </div>
+
+                                <!-- RIGHT COLUMN: Logo Upload -->
+                                <div>
+                                    <label for="logo" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Company Logo
+                                    </label>
+                                    <input type="file" name="logo" id="logo" accept="image/*"
+                                           class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                                    <p class="mt-1 text-sm text-gray-500">Max 2MB, JPG, PNG, or GIF</p>
+                                    @error('logo')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

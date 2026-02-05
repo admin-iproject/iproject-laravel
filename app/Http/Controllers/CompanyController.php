@@ -23,10 +23,10 @@ class CompanyController extends Controller
 
         // Scope filtering based on user type
         $user = Auth::user();
-        
-        // Only super admin (company_id = null && admin role) sees ALL companies
-        // Everyone else ONLY sees their own company
-        if (!($user->hasRole('admin') && $user->company_id === null)) {
+
+        // System users (company_id = null) see ALL companies.
+        // Company-level users only see their own.
+        if (!($user->hasRole('super_admin') && $user->company_id === null)) {
             $query->where('id', $user->company_id);
         }
 
@@ -60,12 +60,12 @@ class CompanyController extends Controller
         // Get filter options (only from visible companies)
         $typesQuery = Company::distinct();
         $categoriesQuery = Company::distinct();
-        
-        if (!($user->hasRole('admin') && $user->company_id === null)) {
+
+        if (!($user->hasRole('super_admin') && $user->company_id === null)) {
             $typesQuery->where('id', $user->company_id);
             $categoriesQuery->where('id', $user->company_id);
         }
-        
+
         $types = $typesQuery->pluck('type')->filter();
         $categories = $categoriesQuery->pluck('category')->filter();
 
@@ -100,6 +100,9 @@ class CompanyController extends Controller
             $validated['logo'] = $request->file('logo')->store('company-logos', 'public');
         }
 
+        // Every new company starts with at least 1 license
+        $validated['num_of_licensed_users'] = $validated['num_of_licensed_users'] ?? 1;
+
         $validated['last_edited'] = now();
         $validated['last_edited_by'] = Auth::id();
 
@@ -119,7 +122,7 @@ class CompanyController extends Controller
 
         // Non super-admins can only view their own company
         $user = Auth::user();
-        if (!($user->hasRole('admin') && $user->company_id === null)) {
+        if (!($user->hasRole('super_admin') && $user->company_id === null)) {
             if ($company->id !== $user->company_id) {
                 abort(403);
             }
@@ -132,17 +135,20 @@ class CompanyController extends Controller
             'users',
             'projects',
             'contacts',
-            // 'tickets'  // TODO: Add when tickets module ready
         ]);
 
         // Get statistics
         $stats = [
-            'total_users' => $company->users()->count(),
-            'total_departments' => $company->departments()->count(),
-            'total_projects' => $company->projects()->count(),
-            'active_projects' => $company->projects()->where('active', true)->count(),
-            'total_contacts' => $company->contacts()->count(),
-            'open_tickets' => 0, // TODO: Add when tickets module ready
+            'total_users'        => $company->users()->count(),
+            'active_users'       => $company->activeUserCount(),
+            'licensed_users'     => $company->getLicenseLimit(),
+            'license_at_limit'   => !$company->hasAvailableLicense(),
+            'license_usage'      => $company->getLicenseUsage(),
+            'total_departments'  => $company->departments()->count(),
+            'total_projects'     => $company->projects()->count(),
+            'active_projects'    => $company->projects()->where('active', true)->count(),
+            'total_contacts'     => $company->contacts()->count(),
+            'open_tickets'       => 0, // TODO: Add when tickets module ready
         ];
 
         return view('companies.show', compact('company', 'stats'));
@@ -157,7 +163,7 @@ class CompanyController extends Controller
 
         // Non super-admins can only edit their own company
         $user = Auth::user();
-        if (!($user->hasRole('admin') && $user->company_id === null)) {
+        if (!($user->hasRole('super_admin') && $user->company_id === null)) {
             if ($company->id !== $user->company_id) {
                 abort(403);
             }
@@ -179,13 +185,19 @@ class CompanyController extends Controller
 
         // Non super-admins can only update their own company
         $user = Auth::user();
-        if (!($user->hasRole('admin') && $user->company_id === null)) {
+        if (!($user->hasRole('super_admin') && $user->company_id === null)) {
             if ($company->id !== $user->company_id) {
                 abort(403);
             }
         }
 
         $validated = $request->validated();
+
+        // Belt-and-suspenders: company-level users cannot touch num_of_licensed_users
+        // even if they somehow smuggled it past the Request rules
+        if ($user->company_id !== null) {
+            unset($validated['num_of_licensed_users']);
+        }
 
         // Handle logo upload
         if ($request->hasFile('logo')) {
@@ -261,7 +273,7 @@ class CompanyController extends Controller
     public function restore($id)
     {
         $company = Company::withTrashed()->findOrFail($id);
-        
+
         $this->authorize('restore', $company);
 
         $company->restore();
@@ -288,14 +300,27 @@ class CompanyController extends Controller
     {
         $this->authorize('update', $company);
 
-        $validated = $request->validate([
-            'ticket_priorities' => 'nullable|string',
-            'ticket_categories' => 'nullable|string',
-            'ticket_notification' => 'nullable|string|in:Yes,No',
-            'ticket_notify_email' => 'nullable|string',
-            'ticket_close_reasons' => 'nullable|string',
-            'num_of_licensed_users' => 'nullable|integer|min:0',
-        ]);
+        $user = Auth::user();
+
+        $rules = [
+            'ticket_priorities'      => 'nullable|string',
+            'ticket_categories'      => 'nullable|string',
+            'ticket_notification'    => 'nullable|string|in:Yes,No',
+            'ticket_notify_email'    => 'nullable|string',
+            'ticket_close_reasons'   => 'nullable|string',
+        ];
+
+        // Only system users can touch the license cap
+        if ($user->company_id === null) {
+            $rules['num_of_licensed_users'] = 'nullable|integer|min:1';
+        }
+
+        $validated = $request->validate($rules);
+
+        // Strip it out if a company-level user somehow sent it
+        if ($user->company_id !== null) {
+            unset($validated['num_of_licensed_users']);
+        }
 
         $validated['last_edited'] = now();
         $validated['last_edited_by'] = Auth::id();
@@ -316,16 +341,22 @@ class CompanyController extends Controller
             'users' => $company->users()->count(),
             'departments' => $company->departments()->count(),
             'projects' => [
-                'total' => $company->projects()->count(),
-                'active' => $company->projects()->where('active', true)->count(),
+                'total'     => $company->projects()->count(),
+                'active'    => $company->projects()->where('active', true)->count(),
                 'completed' => $company->projects()->where('percent_complete', 100)->count(),
             ],
             'tasks' => [
                 'total' => $company->projects()->withCount('tasks')->get()->sum('tasks_count'),
             ],
+            'license' => [
+                'used'     => $company->activeUserCount(),
+                'total'    => $company->getLicenseLimit(),
+                'usage'    => $company->getLicenseUsage(),
+                'at_limit' => !$company->hasAvailableLicense(),
+            ],
             'tickets' => [
-				'open' => 0, // TODO
-				'closed' => 0, // TODO
+                'open'   => 0, // TODO
+                'closed' => 0, // TODO
             ],
         ]);
     }

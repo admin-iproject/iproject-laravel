@@ -5,7 +5,7 @@
         </h2>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-2">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
             <div class="mb-6">
@@ -24,37 +24,63 @@
                         <div class="mb-8">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b">Basic Information</h3>
 
-                            <!-- Company Name -->
-                            <div class="mb-4">
-                                <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Company Name <span class="text-red-600">*</span>
-                                </label>
-                                <input type="text" name="name" id="name" 
-                                       value="{{ old('name', $company->name) }}" 
-                                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" 
-                                       required>
-                                @error('name')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            <!-- Logo Upload -->
-                            <div class="mb-4">
-                                <label for="logo" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Company Logo
-                                </label>
-                                @if($company->logo)
-                                    <div class="mb-2">
-                                        <img src="{{ Storage::url($company->logo) }}" alt="Current logo" class="w-32 h-32 object-cover rounded-lg">
-                                        <p class="text-sm text-gray-500 mt-1">Current logo</p>
+                            <!-- Two-column layout: Company Name + License (left) | Logo (right) -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                <!-- LEFT COLUMN: Company Name + License -->
+                                <div class="space-y-4">
+                                    <!-- Company Name -->
+                                    <div>
+                                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Company Name <span class="text-red-600">*</span>
+                                        </label>
+                                        <input type="text" name="name" id="name" 
+                                               value="{{ old('name', $company->name) }}" 
+                                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" 
+                                               required>
+                                        @error('name')
+                                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                        @enderror
                                     </div>
-                                @endif
-                                <input type="file" name="logo" id="logo" accept="image/*"
-                                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
-                                <p class="mt-1 text-sm text-gray-500">Upload a new logo to replace the current one (Max 2MB)</p>
-                                @error('logo')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
+
+                                    <!-- Number of Licensed Users (Super Admin Only) -->
+                                    @if(auth()->user()->company_id === null)
+                                    <div>
+                                        <label for="num_of_licensed_users" class="block text-sm font-medium text-gray-700 mb-2">
+                                            # of User Licenses <span class="text-red-600">*</span>
+                                        </label>
+                                        <input type="number" name="num_of_licensed_users" id="num_of_licensed_users" 
+                                               value="{{ old('num_of_licensed_users', $company->num_of_licensed_users ?? 1) }}" 
+                                               min="1"
+                                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500" 
+                                               required>
+                                        <p class="mt-1 text-sm text-gray-500">
+                                            Current usage: {{ $company->activeUserCount() }} active user(s)
+                                        </p>
+                                        @error('num_of_licensed_users')
+                                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                    @endif
+                                </div>
+
+                                <!-- RIGHT COLUMN: Logo Upload -->
+                                <div>
+                                    <label for="logo" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Company Logo
+                                    </label>
+                                    @if($company->logo)
+                                        <div class="mb-2">
+                                            <img src="{{ Storage::url($company->logo) }}" alt="Current logo" class="w-32 h-32 object-cover rounded-lg">
+                                            <p class="text-sm text-gray-500 mt-1">Current logo</p>
+                                        </div>
+                                    @endif
+                                    <input type="file" name="logo" id="logo" accept="image/*"
+                                           class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                                    <p class="mt-1 text-sm text-gray-500">Upload a new logo to replace the current one (Max 2MB)</p>
+                                    @error('logo')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -278,7 +304,7 @@
                                     <textarea name="ticket_priorities" id="ticket_priorities" rows="5"
                                               placeholder="Low|500|1000&#10;Med|200|400&#10;High|100|200&#10;Urgent|30|60"
                                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 font-mono text-sm">{{ old('ticket_priorities', $company->ticket_priorities ?: "Low|500|1000\nMed|200|400\nHigh|100|200\nUrgent|30|60") }}</textarea>
-                                    <p class="mt-1 text-sm text-gray-500">Format: Name|ResponseTime|ResolveTime (one per line)</p>
+                                    <p class="mt-1 text-sm text-gray-500">Format: Name|Response Mins|Resolve Mins (one per line)</p>
                                     @error('ticket_priorities')
                                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                     @enderror

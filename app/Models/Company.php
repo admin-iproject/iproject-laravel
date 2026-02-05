@@ -11,41 +11,48 @@ class Company extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-    'name',
-    'logo',
-    'phone1',
-    'phone2',
-    'fax',
-    'email',
-    'address_line1',
-    'address_line2',
-    'city',
-    'state',
-    'zip',
-    'country',
-    'primary_url',
-    'owner_id',
-    'description',
-    'type',
-    'custom',
-    'category',
-    'num_of_licensed_users',
-    'ticket_priorities',
-    'ticket_categories',
-    'ticket_notification',
-    'ticket_notify_email',
-    'ticket_close_reasons',
-    'tracker_categories',
-    'tracker_priorities',
-    'tracker_notification',
-    'tracker_notify_email',
-    'tracker_close_reasons',
-    'tracker_phase',
-    'user_roles',
-    'rss',
-    'last_edited',
-    'last_edited_by',
-];
+        'name',
+        'logo',
+        'phone1',
+        'phone2',
+        'fax',
+        'email',
+        'address_line1',
+        'address_line2',
+        'city',
+        'state',
+        'zip',
+        'country',
+        'primary_url',
+        'owner_id',
+        'description',
+        'type',
+        'custom',
+        'category',
+        'num_of_licensed_users',
+        'ticket_priorities',
+        'ticket_categories',
+        'ticket_notification',
+        'ticket_notify_email',
+        'ticket_close_reasons',
+        'tracker_categories',
+        'tracker_priorities',
+        'tracker_notification',
+        'tracker_notify_email',
+        'tracker_close_reasons',
+        'tracker_phase',
+        'otrs_categories',
+        'otrs_priorities',
+        'otrs_notification',
+        'otrs_notify_email',
+        'otrs_close_reasons',
+        'otrs_phase',
+        'user_roles',
+        'rss',
+        'last_edited',
+        'last_edited_by',
+    ];
+
     protected $casts = [
         'last_edited' => 'datetime',
         'type' => 'integer',
@@ -115,6 +122,45 @@ class Company extends Model
     {
         return $this->hasMany(CompanyNews::class);
     }
+
+    // ---------------------------------------------------------------
+    // License helpers
+    // ---------------------------------------------------------------
+
+    /**
+     * Count only active users — these are the ones that consume a license.
+     */
+    public function activeUserCount(): int
+    {
+        return $this->users()->where('status', 'active')->count();
+    }
+
+    /**
+     * The effective license cap. Always at least 1.
+     * If the column is NULL we treat it as 1 (the minimum).
+     */
+    public function getLicenseLimit(): int
+    {
+        return max(1, $this->num_of_licensed_users ?? 1);
+    }
+
+    /**
+     * True when there is at least one open license slot.
+     */
+    public function hasAvailableLicense(): bool
+    {
+        return $this->activeUserCount() < $this->getLicenseLimit();
+    }
+
+    /**
+     * Human-readable usage string, e.g. "3 of 5".
+     */
+    public function getLicenseUsage(): string
+    {
+        return $this->activeUserCount() . ' of ' . $this->getLicenseLimit();
+    }
+
+    // ---------------------------------------------------------------
 
     /**
      * Scope a query to only include active companies.

@@ -1,0 +1,13 @@
+<svg width="260" height="48" viewBox="0 0 260 48" xmlns="http://www.w3.org/2000/svg">
+  <path d="
+    M 0,48
+    L 0,20
+    Q 0,8 12,8
+    L 204,8
+    Q 216,8 216,20
+    L 216,22
+    Q 216,48 260,48
+    L 0,48
+    Z
+  " fill="#f9fafb"/>
+</svg>
