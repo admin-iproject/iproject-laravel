@@ -6,46 +6,74 @@ use App\Models\Project;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\User;
+use App\Http\Requests\StoreProjectRequest;
+use App\Http\Requests\UpdateProjectRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class ProjectController extends Controller
 {
     /**
-     * Display a listing of the projects.
+     * Display a listing of projects.
      */
     public function index(Request $request)
     {
-        $query = Project::with(['company', 'owner', 'department']);
+        $query = Project::with(['company:id,name', 'owner:id,first_name,last_name', 'department:id,name'])
+            ->withCount('tasks')
+            ->select('projects.*');
 
-        // Filter by company if not admin
-        if (!Auth::user()->hasRole('admin')) {
-            $query->where('company_id', Auth::user()->company_id);
+        // Search
+        if ($search = $request->input('search')) {
+            $query->search($search);
         }
 
-        // Apply filters
-        if ($request->filled('company_id')) {
-            $query->where('company_id', $request->company_id);
+        // Filter by company
+        if ($companyId = $request->input('company_id')) {
+            $query->forCompany($companyId);
         }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        // Filter by department
+        if ($departmentId = $request->input('department_id')) {
+            $query->forDepartment($departmentId);
         }
 
-        if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+        // Filter by status
+        if ($status = $request->input('status')) {
+            $query->byStatus($status);
         }
 
-        // Sort
-        $sortBy = $request->get('sort_by', 'name');
-        $sortDir = $request->get('sort_dir', 'asc');
-        $query->orderBy($sortBy, $sortDir);
+        // Filter by active/inactive
+        if ($request->has('active')) {
+            $request->input('active') === '1' 
+                ? $query->active() 
+                : $query->inactive();
+        }
 
-        $projects = $query->paginate(20);
+        // Filter by user's projects
+        if ($request->input('my_projects')) {
+            $query->forUser(auth()->id());
+        }
 
-        $companies = Company::all();
+        // Sorting
+        $sortBy = $request->input('sort_by', 'name');
+        $sortOrder = $request->input('sort_order', 'asc');
+        
+        // Validate sort columns
+        $allowedSorts = ['name', 'start_date', 'end_date', 'status', 'priority', 'created_at'];
+        if (in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortOrder);
+        }
 
-        return view('projects.index', compact('projects', 'companies'));
+        // Pagination
+        $perPage = $request->input('per_page', 25);
+        $projects = $query->paginate($perPage)->withQueryString();
+
+        // Get filter options
+        $companies = Company::select('id', 'name')->orderBy('name')->get();
+        $departments = Department::select('id', 'name')->orderBy('name')->get();
+
+        return view('projects.index', compact('projects', 'companies', 'departments'));
     }
 
     /**
@@ -53,11 +81,12 @@ class ProjectController extends Controller
      */
     public function create()
     {
-        $this->authorize('create', Project::class);
-
-        $companies = Company::all();
-        $departments = Department::all();
-        $users = User::all();
+        $companies = Company::select('id', 'name')->orderBy('name')->get();
+        $departments = Department::select('id', 'name')->orderBy('name')->get();
+        $users = User::select('id', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
 
         return view('projects.create', compact('companies', 'departments', 'users'));
     }
@@ -65,32 +94,35 @@ class ProjectController extends Controller
     /**
      * Store a newly created project in storage.
      */
-    public function store(Request $request)
+    public function store(StoreProjectRequest $request)
     {
-        $this->authorize('create', Project::class);
+        DB::beginTransaction();
+        
+        try {
+            $project = Project::create($request->validated());
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'short_name' => 'nullable|string|max:10',
-            'company_id' => 'required|exists:companies,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'owner_id' => 'required|exists:users,id',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'status' => 'required|integer',
-            'priority' => 'nullable|integer',
-            'description' => 'nullable|string',
-            'target_budget' => 'nullable|numeric|min:0',
-            'color_identifier' => 'nullable|string|max:6',
-        ]);
+            // Add creator to team if not already owner
+            if ($project->owner_id !== $project->creator_id) {
+                $project->addTeamMember(
+                    User::find($project->creator_id),
+                    roleId: null,
+                    allocationPercent: 0
+                );
+            }
 
-        $validated['creator_id'] = Auth::id();
-        $validated['active'] = true;
+            DB::commit();
 
-        $project = Project::create($validated);
+            return redirect()
+                ->route('projects.show', $project)
+                ->with('success', 'Project created successfully.');
 
-        return redirect()->route('projects.show', $project)
-            ->with('success', 'Project created successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to create project: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -98,27 +130,37 @@ class ProjectController extends Controller
      */
     public function show(Project $project)
     {
-        $this->authorize('view', $project);
-
+        // Eager load relationships to avoid N+1
         $project->load([
             'company',
             'department',
             'owner',
             'creator',
-            'team',
+            'lastEditedBy',
             'tasks' => function ($query) {
-                $query->whereNull('parent_id')->with('children');
-            }
+                $query->select('id', 'project_id', 'name', 'status', 'percent_complete', 'start_date', 'end_date')
+                    ->orderBy('task_order')
+                    ->limit(10); // Show first 10, load more via AJAX
+            },
+            'team.user',
+            'team.role',
         ]);
 
-        $taskStats = [
-            'total' => $project->tasks->count(),
-            'completed' => $project->tasks->where('percent_complete', 100)->count(),
-            'in_progress' => $project->tasks->where('percent_complete', '>', 0)->where('percent_complete', '<', 100)->count(),
-            'not_started' => $project->tasks->where('percent_complete', 0)->count(),
+        // Calculate statistics
+        $stats = [
+            'total_tasks' => $project->tasks()->count(),
+            'completed_tasks' => $project->tasks()->where('percent_complete', 100)->count(),
+            'overdue_tasks' => $project->tasks()
+                ->where('end_date', '<', now())
+                ->where('percent_complete', '<', 100)
+                ->count(),
+            'team_members' => $project->team()->count(),
+            'progress_percent' => $project->progress_percent,
+            'days_remaining' => $project->days_remaining,
+            'budget_remaining' => $project->budget_remaining,
         ];
 
-        return view('projects.show', compact('project', 'taskStats'));
+        return view('projects.show', compact('project', 'stats'));
     }
 
     /**
@@ -126,11 +168,12 @@ class ProjectController extends Controller
      */
     public function edit(Project $project)
     {
-        $this->authorize('update', $project);
-
-        $companies = Company::all();
-        $departments = Department::where('company_id', $project->company_id)->get();
-        $users = User::all();
+        $companies = Company::select('id', 'name')->orderBy('name')->get();
+        $departments = Department::select('id', 'name')->orderBy('name')->get();
+        $users = User::select('id', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
 
         return view('projects.edit', compact('project', 'companies', 'departments', 'users'));
     }
@@ -138,98 +181,149 @@ class ProjectController extends Controller
     /**
      * Update the specified project in storage.
      */
-    public function update(Request $request, Project $project)
+    public function update(UpdateProjectRequest $request, Project $project)
     {
-        $this->authorize('update', $project);
+        DB::beginTransaction();
+        
+        try {
+            $project->update($request->validated());
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'short_name' => 'nullable|string|max:10',
-            'company_id' => 'required|exists:companies,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'owner_id' => 'required|exists:users,id',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-            'actual_end_date' => 'nullable|date',
-            'status' => 'required|integer',
-            'percent_complete' => 'required|integer|min:0|max:100',
-            'priority' => 'nullable|integer',
-            'description' => 'nullable|string',
-            'target_budget' => 'nullable|numeric|min:0',
-            'actual_budget' => 'nullable|numeric|min:0',
-            'color_identifier' => 'nullable|string|max:6',
-            'active' => 'boolean',
-        ]);
+            DB::commit();
 
-        $validated['last_edited'] = now();
-        $validated['last_edited_by'] = Auth::id();
+            return redirect()
+                ->route('projects.show', $project)
+                ->with('success', 'Project updated successfully.');
 
-        $project->update($validated);
-
-        return redirect()->route('projects.show', $project)
-            ->with('success', 'Project updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to update project: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Remove the specified project from storage.
+     * Soft delete the specified project from storage.
      */
     public function destroy(Project $project)
     {
-        $this->authorize('delete', $project);
+        try {
+            $project->delete();
 
-        $project->delete();
+            return redirect()
+                ->route('projects.index')
+                ->with('success', 'Project deleted successfully.');
 
-        return redirect()->route('projects.index')
-            ->with('success', 'Project deleted successfully.');
+        } catch (\Exception $e) {
+            return back()
+                ->with('error', 'Failed to delete project: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Show the project team management page.
+     * Restore a soft-deleted project.
      */
-    public function team(Project $project)
+    public function restore($id)
     {
-        $this->authorize('update', $project);
+        $project = Project::withTrashed()->findOrFail($id);
+        $project->restore();
 
-        $project->load(['team', 'company']);
-        $availableUsers = User::where('company_id', $project->company_id)
-            ->whereNotIn('id', $project->team->pluck('id'))
+        return redirect()
+            ->route('projects.show', $project)
+            ->with('success', 'Project restored successfully.');
+    }
+
+    /**
+     * Permanently delete a project.
+     * This uses CASCADE deletes - single query deletes everything!
+     */
+    public function forceDelete($id)
+    {
+        DB::beginTransaction();
+        
+        try {
+            $project = Project::withTrashed()->findOrFail($id);
+            
+            // The CASCADE foreign keys handle all related deletions automatically!
+            // No loops, no multiple queries - database does it all in one transaction
+            $project->forceDelete();
+
+            DB::commit();
+
+            return redirect()
+                ->route('projects.index')
+                ->with('success', 'Project permanently deleted.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return back()
+                ->with('error', 'Failed to permanently delete project: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update project status in bulk.
+     */
+    public function bulkUpdateStatus(Request $request)
+    {
+        $request->validate([
+            'project_ids' => 'required|array',
+            'project_ids.*' => 'exists:projects,id',
+            'status' => 'required|integer|between:0,6',
+        ]);
+
+        DB::transaction(function () use ($request) {
+            Project::whereIn('id', $request->project_ids)
+                ->update([
+                    'status' => $request->status,
+                    'last_edited' => now(),
+                    'last_edited_by' => auth()->id(),
+                ]);
+        });
+
+        return back()->with('success', 'Projects updated successfully.');
+    }
+
+    /**
+     * Export projects to CSV.
+     */
+    public function export(Request $request)
+    {
+        $projects = Project::with(['company', 'owner'])
+            ->when($request->company_id, fn($q) => $q->forCompany($request->company_id))
+            ->when($request->status, fn($q) => $q->byStatus($request->status))
             ->get();
 
-        return view('projects.team', compact('project', 'availableUsers'));
-    }
+        $filename = 'projects_' . now()->format('Y-m-d_His') . '.csv';
 
-    /**
-     * Add a team member to the project.
-     */
-    public function addTeamMember(Request $request, Project $project)
-    {
-        $this->authorize('update', $project);
+        return response()->streamDownload(function () use ($projects) {
+            $handle = fopen('php://output', 'w');
+            
+            // Headers
+            fputcsv($handle, [
+                'ID', 'Name', 'Company', 'Owner', 'Status', 'Start Date', 
+                'End Date', 'Progress %', 'Target Budget', 'Actual Budget'
+            ]);
 
-        $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'role_id' => 'nullable|exists:roles,id',
-            'allocation_percent' => 'required|numeric|min:0|max:100',
-        ]);
+            // Data
+            foreach ($projects as $project) {
+                fputcsv($handle, [
+                    $project->id,
+                    $project->name,
+                    $project->company->name ?? '',
+                    $project->owner->full_name ?? '',
+                    $project->status_text,
+                    $project->start_date?->format('Y-m-d'),
+                    $project->end_date?->format('Y-m-d'),
+                    $project->percent_complete,
+                    $project->target_budget,
+                    $project->actual_budget,
+                ]);
+            }
 
-        $project->team()->attach($validated['user_id'], [
-            'role_id' => $validated['role_id'] ?? null,
-            'allocation_percent' => $validated['allocation_percent'],
-        ]);
-
-        return redirect()->route('projects.team', $project)
-            ->with('success', 'Team member added successfully.');
-    }
-
-    /**
-     * Remove a team member from the project.
-     */
-    public function removeTeamMember(Project $project, User $user)
-    {
-        $this->authorize('update', $project);
-
-        $project->team()->detach($user->id);
-
-        return redirect()->route('projects.team', $project)
-            ->with('success', 'Team member removed successfully.');
+            fclose($handle);
+        }, $filename);
     }
 }

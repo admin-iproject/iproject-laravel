@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -40,6 +41,15 @@ Route::middleware('auth')->group(function () {
     Route::post('users/{user}/make-inactive', [UserController::class, 'makeInactive'])->name('users.make-inactive');
     Route::post('users/{user}/make-hidden', [UserController::class, 'makeHidden'])->name('users.make-hidden');
     Route::get('companies/{company}/departments-list', [UserController::class, 'getDepartments'])->name('companies.departments');
+    
+    // Projects Module - Standard RESTful Resource Routes
+    Route::resource('projects', ProjectController::class);
+    
+    // Projects Module - Additional Routes
+    Route::post('projects/bulk-status', [ProjectController::class, 'bulkUpdateStatus'])->name('projects.bulk-status');
+    Route::get('projects-export', [ProjectController::class, 'export'])->name('projects.export');
+    Route::post('projects/{id}/restore', [ProjectController::class, 'restore'])->name('projects.restore')->withTrashed();
+    Route::delete('projects/{id}/force-delete', [ProjectController::class, 'forceDelete'])->name('projects.force-delete');
     
     // Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
