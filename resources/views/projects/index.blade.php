@@ -30,7 +30,7 @@
 
     {{-- Filters --}}
     <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <form method="GET" action="{{ route('projects.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <form method="GET" action="{{ route('projects.index') }}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             {{-- Search --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
@@ -41,14 +41,14 @@
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
             </div>
 
-            {{-- Company Filter --}}
+            {{-- Department Filter --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                <select name="company_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
-                    <option value="">All Companies</option>
-                    @foreach($companies as $company)
-                        <option value="{{ $company->id }}" {{ request('company_id') == $company->id ? 'selected' : '' }}>
-                            {{ $company->name }}
+                <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <select name="department_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Departments</option>
+                    @foreach($departments as $department)
+                        <option value="{{ $department->id }}" {{ request('department_id') == $department->id ? 'selected' : '' }}>
+                            {{ $department->name }}
                         </option>
                     @endforeach
                 </select>
@@ -88,9 +88,6 @@
                             Project
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Company
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Owner
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -122,9 +119,6 @@
                                         </div>
                                     </div>
                                 </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {{ $project->company->name ?? 'N/A' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {{ $project->owner->first_name ?? '' }} {{ $project->owner->last_name ?? '' }}

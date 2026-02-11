@@ -5,14 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * The attributes that are mass assignable.
+     */
     protected $fillable = [
         'project_id',
         'parent_id',
+        'task_linked',
         'name',
         'description',
         'start_date',
@@ -20,190 +26,89 @@ class Task extends Model
         'duration',
         'duration_type',
         'owner_id',
+        'task_assigned',
+        'assign_hour_type',
         'status',
         'percent_complete',
         'priority',
         'milestone',
         'access',
         'related_url',
+        'tag_it_url',
+        'task_sprint',
         'notify',
         'phase',
+        'task_phase',
+        'task_category',
         'risk',
         'contact_id',
         'cost_code',
         'type',
         'target_budget',
+        'task_ignore_budget',
         'task_order',
         'creator_id',
         'last_edited',
         'last_edited_by',
-    ];
-
-    protected $casts = [
-        'start_date' => 'datetime',
-        'end_date' => 'datetime',
-        'duration' => 'decimal:2',
-        'status' => 'integer',
-        'percent_complete' => 'integer',
-        'priority' => 'integer',
-        'milestone' => 'integer',
-        'access' => 'integer',
-        'notify' => 'integer',
-        'phase' => 'integer',
-        'risk' => 'integer',
-        'type' => 'integer',
-        'target_budget' => 'decimal:2',
-        'task_order' => 'integer',
-        'last_edited' => 'datetime',
+        'task_lastupdate',
+        'task_level',
+        'task_level_refer',
     ];
 
     /**
-     * Get the project that owns the task.
+     * The attributes that should be cast.
      */
-    public function project()
+    protected $casts = [
+        'start_date' => 'datetime',
+        'end_date' => 'datetime',
+        'last_edited' => 'datetime',
+        'task_lastupdate' => 'datetime',
+        'task_ignore_budget' => 'boolean',
+        'duration' => 'decimal:2',
+        'target_budget' => 'decimal:2',
+    ];
+
+    /**
+     * Relationships
+     */
+    
+    public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
     }
 
-    /**
-     * Get the parent task.
-     */
-    public function parent()
+    public function parent(): BelongsTo
     {
         return $this->belongsTo(Task::class, 'parent_id');
     }
 
-    /**
-     * Get the child tasks.
-     */
-    public function children()
+    public function children(): HasMany
     {
         return $this->hasMany(Task::class, 'parent_id');
     }
 
-    /**
-     * Get the owner of the task.
-     */
-    public function owner()
+    public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
     }
 
-    /**
-     * Get the creator of the task.
-     */
-    public function creator()
+    public function assignedTo(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'creator_id');
+        return $this->belongsTo(User::class, 'task_assigned');
     }
 
-    /**
-     * Get the contact associated with the task.
-     */
-    public function contact()
+    public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
     }
 
-    /**
-     * Get the assigned users for the task.
-     */
-    public function assignedUsers()
+    public function creator(): BelongsTo
     {
-        return $this->belongsToMany(User::class, 'user_tasks')
-                    ->withPivot('percent_effort')
-                    ->withTimestamps();
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
-    /**
-     * Get the task logs.
-     */
-    public function logs()
+    public function lastEditedBy(): BelongsTo
     {
-        return $this->hasMany(TaskLog::class);
-    }
-
-    /**
-     * Get the task checklist items.
-     */
-    public function checklist()
-    {
-        return $this->hasMany(TaskChecklist::class)->orderBy('order');
-    }
-
-    /**
-     * Get the tasks that this task depends on.
-     */
-    public function dependencies()
-    {
-        return $this->belongsToMany(Task::class, 'task_dependencies', 'task_id', 'depends_on_task_id')
-                    ->withPivot('dependency_type', 'lag_days')
-                    ->withTimestamps();
-    }
-
-    /**
-     * Get the tasks that depend on this task.
-     */
-    public function dependents()
-    {
-        return $this->belongsToMany(Task::class, 'task_dependencies', 'depends_on_task_id', 'task_id')
-                    ->withPivot('dependency_type', 'lag_days')
-                    ->withTimestamps();
-    }
-
-    /**
-     * Get the files for the task.
-     */
-    public function files()
-    {
-        return $this->hasMany(File::class);
-    }
-
-    /**
-     * Scope a query to only include active tasks.
-     */
-    public function scopeActive($query)
-    {
-        return $query->whereNull('deleted_at');
-    }
-
-    /**
-     * Scope a query to filter by status.
-     */
-    public function scopeByStatus($query, $status)
-    {
-        return $query->where('status', $status);
-    }
-
-    /**
-     * Scope a query to filter by project.
-     */
-    public function scopeOfProject($query, $projectId)
-    {
-        return $query->where('project_id', $projectId);
-    }
-
-    /**
-     * Scope a query to only include milestones.
-     */
-    public function scopeMilestones($query)
-    {
-        return $query->where('milestone', 1);
-    }
-
-    /**
-     * Check if the task is overdue.
-     */
-    public function isOverdue()
-    {
-        return $this->end_date && $this->end_date->isPast() && $this->percent_complete < 100;
-    }
-
-    /**
-     * Get total hours logged.
-     */
-    public function getTotalHoursAttribute()
-    {
-        return $this->logs()->sum('hours');
+        return $this->belongsTo(User::class, 'last_edited_by');
     }
 }

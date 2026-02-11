@@ -21,16 +21,12 @@ class ProjectController extends Controller
     {
         $query = Project::with(['company:id,name', 'owner:id,first_name,last_name', 'department:id,name'])
             ->withCount('tasks')
+            ->where('company_id', auth()->user()->company_id) // Only show user's company projects
             ->select('projects.*');
 
         // Search
         if ($search = $request->input('search')) {
             $query->search($search);
-        }
-
-        // Filter by company
-        if ($companyId = $request->input('company_id')) {
-            $query->forCompany($companyId);
         }
 
         // Filter by department
@@ -69,11 +65,13 @@ class ProjectController extends Controller
         $perPage = $request->input('per_page', 25);
         $projects = $query->paginate($perPage)->withQueryString();
 
-        // Get filter options
-        $companies = Company::select('id', 'name')->orderBy('name')->get();
-        $departments = Department::select('id', 'name')->orderBy('name')->get();
+        // Get filter options (only for user's company)
+        $departments = Department::where('company_id', auth()->user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
-        return view('projects.index', compact('projects', 'companies', 'departments'));
+        return view('projects.index', compact('projects', 'departments'));
     }
 
     /**
@@ -81,14 +79,18 @@ class ProjectController extends Controller
      */
     public function create()
     {
-        $companies = Company::select('id', 'name')->orderBy('name')->get();
-        $departments = Department::select('id', 'name')->orderBy('name')->get();
-        $users = User::select('id', 'first_name', 'last_name')
+        $departments = Department::where('company_id', auth()->user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+            
+        $users = User::where('company_id', auth()->user()->company_id)
+            ->select('id', 'first_name', 'last_name')
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get();
 
-        return view('projects.create', compact('companies', 'departments', 'users'));
+        return view('projects.create', compact('departments', 'users'));
     }
 
     /**
@@ -99,7 +101,12 @@ class ProjectController extends Controller
         DB::beginTransaction();
         
         try {
-            $project = Project::create($request->validated());
+            $data = $request->validated();
+            
+            // Auto-assign user's company
+            $data['company_id'] = auth()->user()->company_id;
+            
+            $project = Project::create($data);
 
             // Add creator to team if not already owner
             if ($project->owner_id !== $project->creator_id) {
@@ -138,9 +145,11 @@ class ProjectController extends Controller
             'creator',
             'lastEditedBy',
             'tasks' => function ($query) {
-                $query->select('id', 'project_id', 'name', 'status', 'percent_complete', 'start_date', 'end_date')
-                    ->orderBy('task_order')
-                    ->limit(10); // Show first 10, load more via AJAX
+                // Load ALL tasks with all fields needed for hierarchy display
+                $query->select('id', 'project_id', 'name', 'parent_id', 'status', 'priority', 
+                              'percent_complete', 'start_date', 'end_date', 'level', 
+                              'target_budget', 'task_ignore_budget')
+                    ->orderBy('id', 'asc'); // Order by ID to maintain creation order
             },
             'team.user',
             'team.role',
@@ -148,13 +157,16 @@ class ProjectController extends Controller
 
         // Calculate statistics
         $stats = [
-            'total_tasks' => $project->tasks()->count(),
-            'completed_tasks' => $project->tasks()->where('percent_complete', 100)->count(),
-            'overdue_tasks' => $project->tasks()
-                ->where('end_date', '<', now())
-                ->where('percent_complete', '<', 100)
+            'total_tasks' => $project->tasks->count(), // Use collection count (already loaded)
+            'completed_tasks' => $project->tasks->where('percent_complete', 100)->count(),
+            'overdue_tasks' => $project->tasks
+                ->filter(function($task) {
+                    return $task->end_date && 
+                           $task->end_date->isPast() && 
+                           $task->percent_complete < 100;
+                })
                 ->count(),
-            'team_members' => $project->team()->count(),
+            'team_members' => $project->team->count(),
             'progress_percent' => $project->progress_percent,
             'days_remaining' => $project->days_remaining,
             'budget_remaining' => $project->budget_remaining,
@@ -168,14 +180,18 @@ class ProjectController extends Controller
      */
     public function edit(Project $project)
     {
-        $companies = Company::select('id', 'name')->orderBy('name')->get();
-        $departments = Department::select('id', 'name')->orderBy('name')->get();
-        $users = User::select('id', 'first_name', 'last_name')
+        $departments = Department::where('company_id', auth()->user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+            
+        $users = User::where('company_id', auth()->user()->company_id)
+            ->select('id', 'first_name', 'last_name')
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get();
 
-        return view('projects.edit', compact('project', 'companies', 'departments', 'users'));
+        return view('projects.edit', compact('project', 'departments', 'users'));
     }
 
     /**
@@ -201,6 +217,28 @@ class ProjectController extends Controller
                 ->withInput()
                 ->with('error', 'Failed to update project: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Update project settings (phases, custom fields)
+     */
+    public function updateSettings(Request $request, Project $project)
+    {
+        $request->validate([
+            'phases' => 'nullable|array',
+            'phases.*' => 'nullable|string|max:255',
+            'custom_fields' => 'nullable|array',
+        ]);
+        
+        // Filter out empty phase names
+        $phases = array_filter($request->phases ?? [], fn($phase) => !empty(trim($phase)));
+        
+        $project->update([
+            'phases' => array_values($phases), // Reset array keys
+            'custom_fields' => $request->custom_fields ?? [],
+        ]);
+        
+        return back()->with('success', 'Project settings updated successfully.');
     }
 
     /**

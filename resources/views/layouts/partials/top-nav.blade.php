@@ -173,9 +173,14 @@
                         </div>
                         <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile</a>
                         <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Settings</a>
-                        @can('viewAny', App\Models\Company::class)
-                            <a href="{{ route('companies.index') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Company</a>
-                        @endcan
+                        
+                        {{-- Smart Company Link: Super Admin sees list, others see their company --}}
+                        @if(Auth::user()->hasRole('super_admin'))
+                            <a href="{{ route('companies.index') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Companies</a>
+                        @else
+                            <a href="{{ route('companies.show', Auth::user()->company_id) }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Company</a>
+                        @endif
+                        
                         <hr class="my-2">
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf

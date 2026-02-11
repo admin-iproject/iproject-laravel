@@ -20,9 +20,8 @@ class UpdateProjectRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Required fields (can be more lenient on update)
+            // Required fields (can be more lenient on update, company_id never changes)
             'name' => 'sometimes|required|string|max:255',
-            'company_id' => 'sometimes|required|exists:companies,id',
             'owner_id' => 'sometimes|required|exists:users,id',
             
             // Optional fields
@@ -47,7 +46,6 @@ class UpdateProjectRequest extends FormRequest
             
             // Budget
             'target_budget' => 'nullable|numeric|min:0',
-            'actual_budget' => 'nullable|numeric|min:0',
             
             // Text fields
             'description' => 'nullable|string',
@@ -78,7 +76,6 @@ class UpdateProjectRequest extends FormRequest
             'url.url' => 'Please enter a valid URL.',
             'color_identifier.regex' => 'Color must be a valid 6-digit hex code.',
             'target_budget.min' => 'Target budget cannot be negative.',
-            'actual_budget.min' => 'Actual budget cannot be negative.',
         ];
     }
 

@@ -1,1 +1,0 @@
-<?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/projects/create.blade.php ENDPATH**/ ?>

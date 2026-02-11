@@ -6,9 +6,9 @@
 /* ==================== ROOT VARIABLES ==================== */
 :root {
     /* Sidebar Dimensions */
-    --sidebar-width: 280px;
+    --sidebar-width: 320px;
     --sidebar-collapsed-width: 56px;
-    --slideout-width: 320px;
+    --slideout-width: 450px;
     --topnav-height: 56px;
     
     /* Transitions */
@@ -27,16 +27,16 @@
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
     
     /* Colors */
-    --color-sidebar-bg: #F9FAFB;
-    --color-sidebar-hover: #F3F4F6;
-    --color-sidebar-active: #E5E7EB;
+    --color-sidebar-bg: #FAF9F5;
+    --color-sidebar-hover: #9d8854;
+    --color-sidebar-active: #9d8854;
     --color-sidebar-text: #374151;
-    --color-sidebar-text-active: #1F2937;
-    --color-primary-500: #3D7BA8;
-    --color-primary-600: #2A5A7D;
+    --color-sidebar-text-active: #ffffff;
+    --color-primary-500: #9d8854;
+    --color-primary-600: #cab287;
     --color-gray-50: #F9FAFB;
     --color-gray-100: #F3F4F6;
-    --color-gray-200: #E5E7EB;
+    --color-gray-200: #FAF9F5;
     --color-gray-300: #D1D5DB;
     --color-gray-400: #9CA3AF;
     --color-gray-500: #6B7280;
@@ -72,7 +72,7 @@
     left: 0;
     right: 0;
     height: 48px;
-    background: linear-gradient(135deg, #CC0000 0%, #7a0000 100%);
+    background: #76663f; /*linear-gradient(135deg, #CC0000 0%, #7a0000 100%);*/
     z-index: 51;
 }
 
@@ -82,13 +82,13 @@
     left: 0;
     right: 0;
     height: 8px;
-    background-color: #F9FAFB;
+    background-color: #FAF9F5;
     z-index: 51;
 }
 
 .top-nav-menu-item {
     color: white;
-	background-color: #630000;
+	background-color: #9d8854;
 	height: 48px;
     padding: 0.5rem 1rem;
     border-radius: 0.375rem;
@@ -102,7 +102,7 @@
 }
 
 .top-nav-menu-item:hover {
-    background-color: #f9fafb;
+    background-color: #FAF9F5;
 	color: black;
 	position: relative;
 	top: 6px;
@@ -129,9 +129,10 @@
     bottom: 0;
     width: var(--sidebar-width);
     background-color: var(--color-sidebar-bg);
+
     transition: width var(--transition-speed) var(--transition-easing);
     z-index: var(--z-sidebar);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
     overflow-y: auto;
 }
 
@@ -245,17 +246,17 @@
 
 .slideout-header {
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--color-gray-200);
+    border-bottom: 1px solid var(--color-primary-500);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: var(--color-gray-50);
+    background-color: var(--color-primary-500);
 }
 
 .slideout-title {
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--color-gray-900);
+    color: white;
 }
 
 .slideout-close-btn {
@@ -286,7 +287,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lg);
     transition: all var(--transition-speed) var(--transition-easing);
     cursor: pointer;
     border: none;
@@ -310,10 +311,10 @@
 /* ==================== MAIN CONTENT AREA ==================== */
 .main-content {
     margin-left: var(--sidebar-collapsed-width);
-    margin-top: var(--topnav-height);
+    margin-top: 20px;
     transition: margin-left var(--transition-speed) var(--transition-easing);
     min-height: calc(100vh - var(--topnav-height));
-    background-color: #E5E7EB;
+    background-color: var(--color-gray-200);
 }
 
 body:not(:has(.left-sidebar.collapsed)) .main-content,
@@ -330,6 +331,10 @@ body:has(.slideout-tab) .main-content {
 .widget-card {
     background-color: white;
     border-radius: 0.5rem;
+	border-top: 2px solid;
+    border-top-color: var(--color-gray-300);
+	border-left: 2px solid;
+    border-left-color: var(--color-gray-300);
     box-shadow: var(--shadow-md);
     transition: box-shadow var(--transition-speed) var(--transition-easing);
 }
@@ -372,6 +377,7 @@ body:has(.slideout-tab) .main-content {
 /* ==================== BUTTONS ==================== */
 .btn-primary {
     background-color: var(--color-primary-500);
+	height: 32px;
     color: white;
     padding: 0.5rem 1rem;
     border-radius: 0.375rem;
@@ -386,6 +392,7 @@ body:has(.slideout-tab) .main-content {
 
 .btn-primary:hover {
     background-color: var(--color-primary-600);
+	color: black;
 }
 
 .btn-secondary {

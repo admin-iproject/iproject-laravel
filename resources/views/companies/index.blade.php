@@ -8,8 +8,8 @@
     <div class="py-4">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-<div class="mb-6 flex items-center justify-between">
-    <h1 class="text-2xl font-bold text-gray-900">Companies</h1>
+<div class="mb-4 flex items-center justify-between">
+
     
     @can('create', App\Models\Company::class)
     <a href="{{ route('companies.create') }}" class="btn btn-primary">

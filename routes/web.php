@@ -23,8 +23,23 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('refresh-csrf');
     
-    // Companies Module
-    Route::resource('companies', CompanyController::class);
+    // Companies Module with Smart Redirect
+    // Regular users accessing /companies will be redirected to their own company
+    Route::get('companies', function (\Illuminate\Http\Request $request) {
+        if (auth()->user()->hasRole('super_admin')) {
+            return app(\App\Http\Controllers\CompanyController::class)->index($request);
+        }
+        // Redirect regular users to their own company
+        return redirect()->route('companies.show', auth()->user()->company_id);
+    })->name('companies.index');
+    
+    // All other company routes work normally
+    Route::get('companies/create', [CompanyController::class, 'create'])->name('companies.create');
+    Route::post('companies', [CompanyController::class, 'store'])->name('companies.store');
+    Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
+    Route::get('companies/{company}/edit', [CompanyController::class, 'edit'])->name('companies.edit');
+    Route::put('companies/{company}', [CompanyController::class, 'update'])->name('companies.update');
+    Route::delete('companies/{company}', [CompanyController::class, 'destroy'])->name('companies.destroy');
     
     // Departments (nested under companies)
     Route::prefix('companies/{company}')->group(function () {
@@ -46,6 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('projects', ProjectController::class);
     
     // Projects Module - Additional Routes
+    Route::put('projects/{project}/settings', [ProjectController::class, 'updateSettings'])->name('projects.updateSettings');
     Route::post('projects/bulk-status', [ProjectController::class, 'bulkUpdateStatus'])->name('projects.bulk-status');
     Route::get('projects-export', [ProjectController::class, 'export'])->name('projects.export');
     Route::post('projects/{id}/restore', [ProjectController::class, 'restore'])->name('projects.restore')->withTrashed();

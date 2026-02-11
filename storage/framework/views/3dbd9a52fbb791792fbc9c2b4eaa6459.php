@@ -173,9 +173,14 @@
                         </div>
                         <a href="<?php echo e(route('profile.edit')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile</a>
                         <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Settings</a>
-                        <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('viewAny', App\Models\Company::class)): ?>
-                            <a href="<?php echo e(route('companies.index')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Company</a>
+                        
+                        
+                        <?php if(Auth::user()->hasRole('super_admin')): ?>
+                            <a href="<?php echo e(route('companies.index')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Companies</a>
+                        <?php else: ?>
+                            <a href="<?php echo e(route('companies.show', Auth::user()->company_id)); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Company</a>
                         <?php endif; ?>
+                        
                         <hr class="my-2">
                         <form method="POST" action="<?php echo e(route('logout')); ?>">
                             <?php echo csrf_field(); ?>

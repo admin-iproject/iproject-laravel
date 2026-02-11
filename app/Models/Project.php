@@ -35,6 +35,7 @@ class Project extends Model
         'target_budget',
         'actual_budget',
         'phases',
+        'custom_fields',
         'categories',
         'contract',
         'priority',
@@ -58,6 +59,8 @@ class Project extends Model
         'private' => 'boolean',
         'target_budget' => 'decimal:2',
         'actual_budget' => 'decimal:2',
+        'phases' => 'array',
+        'custom_fields' => 'array',
     ];
 
     /**
@@ -81,6 +84,11 @@ class Project extends Model
             // Set default color if not provided
             if (empty($project->color_identifier)) {
                 $project->color_identifier = 'eeeeee';
+            }
+
+            // Set last_edited_by on creation (required field)
+            if (empty($project->last_edited_by) && auth()->check()) {
+                $project->last_edited_by = auth()->id();
             }
         });
 
@@ -267,6 +275,20 @@ class Project extends Model
     public function updateProgress(): void
     {
         $this->percent_complete = $this->calculateProgress();
+        $this->saveQuietly(); // Don't trigger events
+    }
+
+    public function calculateActualBudget(): float
+    {
+        // Sum up all task budgets in the entire hierarchy
+        return $this->tasks()
+            ->where('task_ignore_budget', false)
+            ->sum('target_budget') ?? 0;
+    }
+
+    public function updateActualBudget(): void
+    {
+        $this->actual_budget = $this->calculateActualBudget();
         $this->saveQuietly(); // Don't trigger events
     }
 
