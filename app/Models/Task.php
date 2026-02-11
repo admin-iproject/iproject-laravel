@@ -45,8 +45,10 @@ class Task extends Model
         'cost_code',
         'type',
         'target_budget',
+        'actual_budget',
         'task_ignore_budget',
         'task_order',
+        'level',
         'creator_id',
         'last_edited',
         'last_edited_by',
@@ -66,6 +68,7 @@ class Task extends Model
         'task_ignore_budget' => 'boolean',
         'duration' => 'decimal:2',
         'target_budget' => 'decimal:2',
+        'actual_budget' => 'decimal:2',
     ];
 
     /**
@@ -110,5 +113,265 @@ class Task extends Model
     public function lastEditedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'last_edited_by');
+    }
+
+    /**
+     * Get the task team members
+     */
+    public function team(): HasMany
+    {
+        return $this->hasMany(TaskTeam::class);
+    }
+
+    /**
+     * Get the task checklist items
+     */
+    public function checklist(): HasMany
+    {
+        return $this->hasMany(TaskChecklist::class);
+    }
+
+    /**
+     * Get task dependencies (tasks this task depends on)
+     */
+    public function dependencies(): HasMany
+    {
+        return $this->hasMany(TaskDependency::class, 'task_id');
+    }
+
+    /**
+     * Get tasks that depend on this task
+     */
+    public function dependents(): HasMany
+    {
+        return $this->hasMany(TaskDependency::class, 'depends_on_task_id');
+    }
+
+    /**
+     * Get task time logs
+     */
+    public function timeLogs(): HasMany
+    {
+        return $this->hasMany(TaskLog::class);
+    }
+
+    /**
+     * Get all descendants (children, grandchildren, etc.)
+     */
+    public function descendants()
+    {
+        return $this->children()->with('descendants');
+    }
+
+    /**
+     * Get all ancestors (parent, grandparent, etc.)
+     */
+    public function ancestors()
+    {
+        return $this->parent ? $this->parent->ancestors()->prepend($this->parent) : collect();
+    }
+
+    /**
+     * Budget Calculation Methods
+     */
+
+    /**
+     * Calculate target budget from team assignments
+     */
+    public function calculateTargetFromTeam(): float
+    {
+        return $this->team()
+            ->join('users', 'task_team.user_id', '=', 'users.id')
+            ->selectRaw('SUM(task_team.hours * users.hourly_cost) as total')
+            ->value('total') ?? 0;
+    }
+
+    /**
+     * Calculate target budget from children (for parent tasks)
+     */
+    public function calculateTargetFromChildren(): float
+    {
+        return $this->children()
+            ->where('task_ignore_budget', false)
+            ->sum('target_budget');
+    }
+
+    /**
+     * Calculate actual budget from time logs (includes descendants)
+     */
+    public function calculateActualBudget(): float
+    {
+        // Get own logs
+        $ownLogs = $this->timeLogs()
+            ->join('users', 'task_log.user_id', '=', 'users.id')
+            ->selectRaw('SUM(task_log.hours * users.hourly_cost) as total')
+            ->value('total') ?? 0;
+        
+        // Get children logs recursively
+        $childrenLogs = 0;
+        foreach ($this->children as $child) {
+            $childrenLogs += $child->calculateActualBudget();
+        }
+        
+        return $ownLogs + $childrenLogs;
+    }
+
+    /**
+     * Update target budget based on task type
+     */
+    public function updateTargetBudget(): void
+    {
+        if ($this->hasChildren()) {
+            // Parent task: Auto-calculate from children
+            $this->target_budget = $this->calculateTargetFromChildren();
+        } else {
+            // Leaf task: Calculate from team if team exists
+            if ($this->team()->exists()) {
+                $this->target_budget = $this->calculateTargetFromTeam();
+            }
+            // Otherwise keep manual entry
+        }
+        
+        $this->saveQuietly();
+        
+        // Bubble up to parent
+        if ($this->parent) {
+            $this->parent->updateTargetBudget();
+        }
+    }
+
+    /**
+     * Update actual budget and bubble up
+     */
+    public function updateActualBudget(): void
+    {
+        $this->actual_budget = $this->calculateActualBudget();
+        $this->saveQuietly();
+        
+        // Bubble up to parent
+        if ($this->parent) {
+            $this->parent->updateActualBudget();
+        }
+    }
+
+    /**
+     * Check if task has children
+     */
+    public function hasChildren(): bool
+    {
+        return $this->children()->exists();
+    }
+
+    /**
+     * Helper Methods
+     */
+
+    /**
+     * Get status text
+     */
+    public function getStatusTextAttribute(): string
+    {
+        return match($this->status) {
+            0 => 'Not Started',
+            1 => 'In Progress',
+            2 => 'On Hold',
+            3 => 'Complete',
+            4 => 'Cancelled',
+            default => 'Unknown',
+        };
+    }
+
+    /**
+     * Get priority level text
+     */
+    public function getPriorityTextAttribute(): string
+    {
+        return match(true) {
+            $this->priority >= 7 => 'High',
+            $this->priority >= 4 => 'Medium',
+            default => 'Low',
+        };
+    }
+
+    /**
+     * Check if task is overdue
+     */
+    public function getIsOverdueAttribute(): bool
+    {
+        if (!$this->end_date) {
+            return false;
+        }
+
+        return $this->end_date->isPast() && $this->percent_complete < 100;
+    }
+
+    /**
+     * Check if task is owned by user
+     */
+    public function isOwnedBy(User $user): bool
+    {
+        return $this->owner_id === $user->id;
+    }
+
+    /**
+     * Check if user is on task team
+     */
+    public function hasTeamMember(User $user): bool
+    {
+        return $this->team()->where('user_id', $user->id)->exists();
+    }
+
+    /**
+     * Scopes
+     */
+
+    /**
+     * Scope for tasks by status
+     */
+    public function scopeByStatus($query, int $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    /**
+     * Scope for completed tasks
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('percent_complete', 100);
+    }
+
+    /**
+     * Scope for overdue tasks
+     */
+    public function scopeOverdue($query)
+    {
+        return $query->where('end_date', '<', now())
+                    ->where('percent_complete', '<', 100);
+    }
+
+    /**
+     * Scope for high priority tasks
+     */
+    public function scopeHighPriority($query)
+    {
+        return $query->where('priority', '>=', 7);
+    }
+
+    /**
+     * Scope for tasks owned by user
+     */
+    public function scopeOwnedBy($query, $userId)
+    {
+        return $query->where('owner_id', $userId);
+    }
+
+    /**
+     * Scope for top-level tasks (no parent)
+     */
+    public function scopeTopLevel($query)
+    {
+        return $query->whereNull('parent_id')
+                    ->orWhereColumn('parent_id', 'id');
     }
 }

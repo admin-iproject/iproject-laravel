@@ -7,9 +7,11 @@ use Illuminate\Support\Facades\Gate;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\User;
+use App\Models\Task;
 use App\Policies\CompanyPolicy;
 use App\Policies\DepartmentPolicy;
 use App\Policies\UserPolicy;
+use App\Policies\TaskPolicy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -40,5 +42,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Company::class, CompanyPolicy::class);
         Gate::policy(Department::class, DepartmentPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(Task::class, TaskPolicy::class);
     }
 }

@@ -33,7 +33,7 @@
                     </div>
                 </div>
                 
-                <!-- My Dropdown -->
+                <!-- Projects Dropdown -->
                 <div x-data="{ open: false }" @click.away="open = false" class="relative">
                     <button @click="open = !open" class="top-nav-menu-item flex items-center space-x-1">
                         <span>PROJECTS</span>
@@ -44,9 +44,12 @@
                     <div x-show="open" 
                          x-transition
                          class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Projects</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Tickets</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Files</a>
+                        <a href="{{ route('projects.index') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">All Projects</a>
+                        <a href="{{ route('projects.index', ['owner' => Auth::id()]) }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Projects</a>
+                        <a href="{{ route('projects.create') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Create Project</a>
+                        <hr class="my-1">
+                        <a href="{{ route('tasks.index') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">All Tasks</a>
+                        <a href="{{ route('tasks.index', ['owner_id' => Auth::id()]) }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Tasks</a>
                     </div>
                 </div>
 				

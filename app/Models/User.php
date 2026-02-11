@@ -44,6 +44,7 @@ class User extends Authenticatable
         'last_name',
         'company_id',
         'department_id',
+        'hourly_cost',
         'phone',
         'home_phone',
         'mobile',
@@ -83,6 +84,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'type' => 'integer',
             'permission_scopes' => 'array',
+            'hourly_cost' => 'decimal:2',
         ];
     }
 
@@ -286,6 +288,16 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Task::class, 'user_tasks')
                     ->withPivot('percent_effort')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get the tasks the user is a team member of (via task_team table).
+     */
+    public function taskTeam()
+    {
+        return $this->belongsToMany(Task::class, 'task_team')
+                    ->withPivot('hours', 'is_owner', 'assigned_by', 'assigned_at')
                     ->withTimestamps();
     }
 

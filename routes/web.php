@@ -5,6 +5,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -66,6 +67,18 @@ Route::middleware('auth')->group(function () {
     Route::get('projects-export', [ProjectController::class, 'export'])->name('projects.export');
     Route::post('projects/{id}/restore', [ProjectController::class, 'restore'])->name('projects.restore')->withTrashed();
     Route::delete('projects/{id}/force-delete', [ProjectController::class, 'forceDelete'])->name('projects.force-delete');
+    
+    // Tasks Module - Standard RESTful Resource Routes
+    Route::resource('tasks', TaskController::class);
+    
+    // Tasks Module - Additional Routes
+    Route::put('tasks/{task}/team', [TaskController::class, 'updateTeam'])->name('tasks.updateTeam');
+    Route::post('tasks/{task}/checklist', [TaskController::class, 'addChecklistItem'])->name('tasks.addChecklistItem');
+    Route::put('tasks/{task}/checklist/{item}', [TaskController::class, 'updateChecklistItem'])->name('tasks.updateChecklistItem');
+    Route::delete('tasks/{task}/checklist/{item}', [TaskController::class, 'deleteChecklistItem'])->name('tasks.deleteChecklistItem');
+    Route::post('tasks/{task}/checklist/{item}/toggle', [TaskController::class, 'toggleChecklistItem'])->name('tasks.toggleChecklistItem');
+    Route::post('tasks/{id}/restore', [TaskController::class, 'restore'])->name('tasks.restore')->withTrashed();
+    Route::delete('tasks/{id}/force-delete', [TaskController::class, 'forceDelete'])->name('tasks.force-delete');
     
     // Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
