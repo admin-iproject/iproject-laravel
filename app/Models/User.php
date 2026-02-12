@@ -44,7 +44,7 @@ class User extends Authenticatable
         'last_name',
         'company_id',
         'department_id',
-        'hourly_cost',
+        'hourly_cost', // ALREADY EXISTS
         'phone',
         'home_phone',
         'mobile',
@@ -84,7 +84,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'type' => 'integer',
             'permission_scopes' => 'array',
-            'hourly_cost' => 'decimal:2',
+            'hourly_cost' => 'decimal:2', // ALREADY EXISTS
         ];
     }
 
@@ -277,7 +277,7 @@ class User extends Authenticatable
     public function projects()
     {
         return $this->belongsToMany(Project::class, 'project_team')
-                    ->withPivot('role_id', 'allocation_percent')
+                    ->withPivot('role_id', 'allocation_percent', 'hourly_cost')
                     ->withTimestamps();
     }
 
@@ -314,15 +314,69 @@ class User extends Authenticatable
      */
     public function availability()
     {
-        return $this->hasMany(UserAvailability::class);
+        return $this->hasMany(UserAvailability::class)->orderBy('availability_date');
     }
 
     /**
-     * Get the user's standard availability.
+     * Get the user's standard availability (weekly schedule).
      */
     public function standardAvailability()
     {
-        return $this->hasMany(UserStandardAvailability::class);
+        return $this->hasMany(UserStandardAvailability::class)->orderBy('day_of_week');
+    }
+
+    /**
+     * Get total weekly hours from standard availability.
+     * NEW
+     */
+    public function getWeeklyHoursAttribute(): float
+    {
+        return $this->standardAvailability()->sum('hours_available');
+    }
+
+    /**
+     * Get availability for a specific date.
+     * Returns custom availability if exists, otherwise returns standard for that day of week.
+     * NEW
+     */
+    public function getAvailabilityForDate($date): float
+    {
+        $carbonDate = \Carbon\Carbon::parse($date);
+        
+        // Check for custom availability first
+        $customAvailability = $this->availability()
+            ->where('availability_date', $carbonDate->format('Y-m-d'))
+            ->first();
+            
+        if ($customAvailability) {
+            return $customAvailability->hours_available;
+        }
+        
+        // Fall back to standard availability for that day of week
+        $dayOfWeek = $carbonDate->dayOfWeek; // 0=Sunday, 6=Saturday
+        $standardAvailability = $this->standardAvailability()
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
+            
+        return $standardAvailability ? $standardAvailability->hours_available : 0;
+    }
+
+    /**
+     * Check if user has hourly cost set.
+     * NEW
+     */
+    public function hasHourlyCost(): bool
+    {
+        return $this->hourly_cost > 0;
+    }
+
+    /**
+     * Get formatted hourly cost.
+     * NEW
+     */
+    public function getFormattedHourlyCostAttribute(): string
+    {
+        return '$' . number_format($this->hourly_cost, 2);
     }
 
     /**

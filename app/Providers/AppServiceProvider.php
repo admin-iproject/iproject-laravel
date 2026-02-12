@@ -43,5 +43,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Department::class, DepartmentPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Task::class, TaskPolicy::class);
+
+        // Register Observers
+        User::observe(\App\Observers\UserObserver::class);
     }
 }

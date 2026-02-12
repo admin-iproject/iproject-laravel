@@ -36,19 +36,19 @@ class StoreTaskRequest extends FormRequest
             'status' => 'nullable|integer|between:0,4',
             'percent_complete' => 'nullable|integer|between:0,100',
             'priority' => 'nullable|integer|between:0,10',
-            'milestone' => 'nullable|boolean',
+            'milestone' => 'nullable|integer|in:0,1', // Changed from boolean
             
             // Task Properties
             'access' => 'nullable|integer|in:0,1', // 0=public, 1=private
             'related_url' => 'nullable|url|max:255',
-            'notify' => 'nullable|boolean',
+            'notify' => 'nullable|integer|in:0,1', // Changed from boolean
             'phase' => 'nullable|integer',
             'risk' => 'nullable|integer',
             
             // Financial
             'target_budget' => 'nullable|numeric|min:0',
             'cost_code' => 'nullable|string|max:20',
-            'task_ignore_budget' => 'nullable|boolean',
+            'task_ignore_budget' => 'nullable|integer|in:0,1', // Changed from boolean
             'type' => 'nullable|integer',
             
             // Additional

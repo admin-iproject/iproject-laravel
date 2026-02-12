@@ -145,11 +145,15 @@ class ProjectController extends Controller
             'creator',
             'lastEditedBy',
             'tasks' => function ($query) {
-                // Load ALL tasks with all fields needed for hierarchy display
-                $query->select('id', 'project_id', 'name', 'parent_id', 'status', 'priority', 
-                              'percent_complete', 'start_date', 'end_date', 'level', 
-                              'target_budget', 'task_ignore_budget')
-                    ->orderBy('id', 'asc'); // Order by ID to maintain creation order
+                // Load ALL tasks with children recursively
+                $query->with(['children' => function($q) {
+                        $q->with('children.children.children.children'); // Support 5 levels deep
+                    }])
+                    ->select('id', 'project_id', 'name', 'parent_id', 'status', 'priority', 
+                            'percent_complete', 'start_date', 'end_date', 'level', 
+                            'target_budget', 'task_ignore_budget', 'owner_id')
+                    ->orderBy('task_order', 'asc')
+                    ->orderBy('id', 'asc');
             },
             'team.user',
             'team.role',

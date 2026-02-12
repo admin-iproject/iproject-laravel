@@ -104,12 +104,30 @@ class TaskController extends Controller
 
             DB::commit();
 
+            // Return JSON for AJAX requests
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Task created successfully.',
+                    'task' => $task->load('owner', 'project')
+                ], 201);
+            }
+
             return redirect()
                 ->route('projects.show', $task->project_id)
                 ->with('success', 'Task created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            // Return JSON error for AJAX requests
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create task: ' . $e->getMessage()
+                ], 500);
+            }
+            
             return back()
                 ->withInput()
                 ->with('error', 'Failed to create task: ' . $e->getMessage());

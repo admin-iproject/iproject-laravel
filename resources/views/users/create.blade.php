@@ -357,6 +357,49 @@
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                             >
                         </div>
+
+                        <!-- Hourly Cost -->
+                        <div class="mt-4">
+                            <label for="hourly_cost" class="block text-sm font-medium text-gray-700 mb-1">
+                                Hourly Cost ($)
+                            </label>
+                            <input 
+                                type="number" 
+                                name="hourly_cost" 
+                                id="hourly_cost"
+                                value="{{ old('hourly_cost', 0) }}"
+                                min="0"
+                                step="0.01"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Standard Working Hours -->
+                    <div class="mb-6 border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Standard Working Hours</h3>
+                        <p class="text-sm text-gray-600 mb-4">Set typical available hours for each day of the week. Defaults to 8 hours Monday-Friday.</p>
+                        
+                        <div class="grid grid-cols-7 gap-3">
+                            @php
+                                $days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                $defaults = [0, 8, 8, 8, 8, 8, 0]; // Default: 8 hours Mon-Fri
+                            @endphp
+                            
+                            @foreach($days as $index => $day)
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 text-center mb-1">{{ $day }}</label>
+                                    <input type="number" 
+                                           name="availability[{{ $index }}]" 
+                                           min="0" 
+                                           max="24" 
+                                           step="0.5"
+                                           value="{{ old('availability.'.$index, $defaults[$index]) }}"
+                                           class="w-full text-center border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm py-2">
+                                    <p class="text-xs text-gray-500 text-center mt-1">hrs</p>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
 
                     <!-- Roles -->

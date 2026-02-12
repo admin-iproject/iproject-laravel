@@ -87,11 +87,11 @@
         </div>
 
         <div class="flex gap-2 items-center">
-            <button id="addTaskBtn" class="btn-primary">
-                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Add Task Icon Button -->
+            <button id="openTaskModal" class="icon-btn icon-btn-primary" title="Add Task">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                Add Task
             </button>
 
             <?php if($project->isOwnedBy(auth()->user())): ?>
@@ -261,11 +261,22 @@
                                         
                                     // Action buttons
                                     echo '<div class="flex items-center space-x-1 flex-shrink-0">';
+                                    
+                                    // Create Child Task button
+                                    echo '<button onclick="openCreateChildTaskModal('.$task->id.')" class="p-1 text-gray-400 hover:text-green-600" title="Create Child Task">';
+                                    echo '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                                    echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>';
+                                    echo '</svg>';
+                                    echo '</button>';
+                                    
+                                    // Edit button
                                     echo '<button class="p-1 text-gray-400 hover:text-blue-600" title="Edit Task">';
                                     echo '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                                     echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>';
                                     echo '</svg>';
                                     echo '</button>';
+                                    
+                                    // Delete button
                                     echo '<button class="p-1 text-gray-400 hover:text-red-600" title="Delete Task">';
                                     echo '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                                     echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>';
@@ -1218,6 +1229,356 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+});
+</script>
+
+<!-- Task Create Modal -->
+<div id="taskCreateModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+            <h3 class="text-lg font-semibold text-gray-900">Create New Task</h3>
+            <button id="closeTaskModal" class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Modal Body (Scrollable) -->
+        <form id="taskCreateForm" class="flex-1 overflow-y-auto">
+            <div class="p-6 space-y-6">
+                
+                <!-- Basic Info -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Task Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="name" required
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Enter task name">
+                        <div class="text-red-500 text-sm mt-1 hidden" data-error="name"></div>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea name="description" rows="3"
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Task description (optional)"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Task Owner <span class="text-red-500">*</span>
+                        </label>
+                        <select name="owner_id" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="<?php echo e(auth()->id()); ?>"><?php echo e(auth()->user()->name); ?> (Me)</option>
+                            <?php $__currentLoopData = $project->team; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $member): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <?php if($member->id !== auth()->id()): ?>
+                                <option value="<?php echo e($member->id); ?>"><?php echo e($member->name); ?></option>
+                                <?php endif; ?>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Parent Task</label>
+                        <select name="parent_id" id="parentTaskSelect"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">None (Top Level)</option>
+                            <?php $__currentLoopData = $project->tasks; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $task): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <?php if(is_null($task->parent_id) || $task->parent_id == $task->id): ?>
+                                    
+                                    <option value="<?php echo e($task->id); ?>"><?php echo e($task->name); ?></option>
+                                    <?php if($task->children && $task->children->count() > 0): ?>
+                                        <?php $__currentLoopData = $task->children; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $child1): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <?php if($child1->parent_id != $child1->id): ?>
+                                                <option value="<?php echo e($child1->id); ?>">— <?php echo e($child1->name); ?></option>
+                                                <?php if($child1->children && $child1->children->count() > 0): ?>
+                                                    <?php $__currentLoopData = $child1->children; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $child2): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                        <?php if($child2->parent_id != $child2->id): ?>
+                                                            <option value="<?php echo e($child2->id); ?>">— — <?php echo e($child2->name); ?></option>
+                                                            <?php if($child2->children && $child2->children->count() > 0): ?>
+                                                                <?php $__currentLoopData = $child2->children; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $child3): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                                    <?php if($child3->parent_id != $child3->id): ?>
+                                                                        <option value="<?php echo e($child3->id); ?>">— — — <?php echo e($child3->name); ?></option>
+                                                                    <?php endif; ?>
+                                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                                            <?php endif; ?>
+                                                        <?php endif; ?>
+                                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Dates & Duration -->
+                <div class="border-t pt-4">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-3">Schedule</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <input type="date" name="start_date"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                            <input type="date" name="end_date"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                            <div class="flex gap-2">
+                                <input type="number" name="duration" step="0.5" min="0"
+                                       class="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="0">
+                                <select name="duration_type"
+                                        class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="1">Hours</option>
+                                    <option value="24">Days</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status & Priority -->
+                <div class="border-t pt-4">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-3">Status & Priority</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select name="status"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="0">Not Started</option>
+                                <option value="1">In Progress</option>
+                                <option value="2">On Hold</option>
+                                <option value="3">Complete</option>
+                                <option value="4">Cancelled</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                            <select name="priority"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="0">Low</option>
+                                <option value="5" selected>Medium</option>
+                                <option value="10">High</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Progress %</label>
+                            <input type="number" name="percent_complete" min="0" max="100" value="0"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Options -->
+                <div class="border-t pt-4">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-3">Additional Options</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" name="milestone" id="milestone" value="1"
+                                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <label for="milestone" class="ml-2 text-sm text-gray-700">Mark as Milestone</label>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input type="checkbox" name="access" id="access" value="1"
+                                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <label for="access" class="ml-2 text-sm text-gray-700">Private (owner only)</label>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+                <button type="button" id="cancelTaskBtn"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Create Task
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Task Create Modal JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('taskCreateModal');
+    const openBtn = document.getElementById('openTaskModal');
+    const closeBtn = document.getElementById('closeTaskModal');
+    const cancelBtn = document.getElementById('cancelTaskBtn');
+    const form = document.getElementById('taskCreateForm');
+    const parentTaskSelect = document.getElementById('parentTaskSelect');
+
+    // Open modal (top-level task)
+    if (openBtn) {
+        openBtn.addEventListener('click', function() {
+            parentTaskSelect.value = ''; // Clear parent selection
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        });
+    }
+
+    // Open modal for child task creation
+    window.openCreateChildTaskModal = function(parentTaskId) {
+        parentTaskSelect.value = parentTaskId;
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    };
+
+    // Close modal function
+    function closeModal() {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+        form.reset();
+        // Clear error messages
+        document.querySelectorAll('[data-error]').forEach(el => el.classList.add('hidden'));
+    }
+
+    // Close button
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeModal);
+    }
+
+    // Cancel button
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeModal);
+    }
+
+    // Close on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeModal();
+        }
+    });
+
+    // Close on backdrop click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+
+    // Form submission
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Disable submit button
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating...';
+            
+            // Clear previous errors
+            document.querySelectorAll('[data-error]').forEach(el => {
+                el.classList.add('hidden');
+                el.textContent = '';
+            });
+
+            // Get form data
+            const formData = new FormData(form);
+            
+            // Build JSON data - only include non-empty values
+            const data = {
+                project_id: <?php echo e($project->id); ?>,
+                name: formData.get('name'),
+                owner_id: formData.get('owner_id'),
+            };
+
+            // Add optional fields only if they have values
+            if (formData.get('description')) data.description = formData.get('description');
+            if (formData.get('parent_id')) data.parent_id = parseInt(formData.get('parent_id'));
+            if (formData.get('start_date')) data.start_date = formData.get('start_date');
+            if (formData.get('end_date')) data.end_date = formData.get('end_date');
+            if (formData.get('duration')) data.duration = parseFloat(formData.get('duration'));
+            
+            data.duration_type = parseInt(formData.get('duration_type'));
+            data.status = parseInt(formData.get('status'));
+            data.priority = parseInt(formData.get('priority'));
+            data.percent_complete = parseInt(formData.get('percent_complete'));
+            data.milestone = formData.get('milestone') ? 1 : 0;
+            data.access = formData.get('access') ? 1 : 0;
+
+            console.log('Sending data:', data);
+
+            // Submit via AJAX
+            fetch('<?php echo e(route("tasks.store")); ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        console.error('Server error response:', err);
+                        throw err;
+                    });
+                }
+                return response.json();
+            })
+            .then(result => {
+                console.log('Success response:', result);
+                // Success - reload page
+                closeModal();
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Full error object:', error);
+                console.error('Error message:', error.message);
+                console.error('Error errors:', error.errors);
+                
+                // Re-enable submit button
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+                
+                if (error.errors) {
+                    // Show validation errors
+                    let errorList = '';
+                    Object.keys(error.errors).forEach(field => {
+                        const errorEl = document.querySelector(`[data-error="${field}"]`);
+                        if (errorEl) {
+                            errorEl.textContent = error.errors[field][0];
+                            errorEl.classList.remove('hidden');
+                        }
+                        errorList += `${field}: ${error.errors[field][0]}\n`;
+                    });
+                    alert('Validation errors:\n\n' + errorList);
+                } else {
+                    const errorMsg = error.message || 'An error occurred while creating the task.';
+                    alert('ERROR: ' + errorMsg + '\n\nCheck browser console (F12) for details.');
+                }
+            });
+        });
+    }
 });
 </script>
 
