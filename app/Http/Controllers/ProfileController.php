@@ -35,6 +35,21 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
+        // Save standard availability
+        if ($request->has('availability')) {
+            foreach ($request->availability as $dayOfWeek => $hours) {
+                \App\Models\UserStandardAvailability::updateOrCreate(
+                    [
+                        'user_id' => $request->user()->id,
+                        'day_of_week' => $dayOfWeek,
+                    ],
+                    [
+                        'hours_available' => $hours ?? 0,
+                    ]
+                );
+            }
+        }
+
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
@@ -48,7 +63,7 @@ class ProfileController extends Controller
             'password' => [
                 'required',
                 'string',
-                'min:8',
+                'min:10', // Changed from 8 to 10
                 'confirmed',
                 'regex:/[a-z]/',      // must contain at least one lowercase letter
                 'regex:/[A-Z]/',      // must contain at least one uppercase letter

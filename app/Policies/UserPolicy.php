@@ -74,6 +74,12 @@ class UserPolicy
             return false;
         }
 
+        // Company admin can edit all users in their company
+        if ($user->hasRole('company_admin')) {
+            return true;
+        }
+
+        // For other roles, check scope
         return $user->canAccessRecord('users-edit', $model);
     }
 
@@ -96,6 +102,12 @@ class UserPolicy
             return false;
         }
 
+        // Company admin can change status of all users in their company
+        if ($user->hasRole('company_admin')) {
+            return true;
+        }
+
+        // For other roles, check scope
         return $user->canAccessRecord('users-edit', $model);
     }
 
@@ -118,6 +130,12 @@ class UserPolicy
             return false;
         }
 
+        // Company admin can delete all users in their company
+        if ($user->hasRole('company_admin')) {
+            return true;
+        }
+
+        // For other roles, check scope
         return $user->canAccessRecord('users-delete', $model);
     }
 

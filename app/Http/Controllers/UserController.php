@@ -149,11 +149,12 @@ class UserController extends Controller
         $validated = $request->validate([
             'username'       => 'required|string|max:70|unique:users,username',
             'email'          => 'required|email|max:255|unique:users,email',
-            'password'       => 'required|string|min:8|confirmed',
+            'password'       => 'required|string|min:10|confirmed', // Changed to 10
             'first_name'     => 'required|string|max:50',
             'last_name'      => 'required|string|max:50',
             'company_id'     => 'nullable|exists:companies,id',
             'department_id'  => 'nullable|exists:departments,id',
+            'hourly_cost'    => 'nullable|numeric|min:0', // ADDED
             'status'         => 'nullable|in:active,inactive,hidden',
             'type'           => 'nullable|integer',
             'phone'          => 'nullable|string|max:30',
@@ -166,6 +167,8 @@ class UserController extends Controller
             'zip'            => 'nullable|string|max:20',
             'country'        => 'nullable|string|max:50',
             'birthday'       => 'nullable|string|max:20',
+            'availability'   => 'nullable|array', // ADDED
+            'availability.*' => 'nullable|numeric|min:0|max:24', // ADDED
             'roles'          => 'nullable|array',
             'roles.*'        => 'exists:roles,name',
         ]);
@@ -179,6 +182,16 @@ class UserController extends Controller
         $validated['status']   = $validated['status'] ?? User::STATUS_ACTIVE;
 
         $user = User::create($validated);
+
+        // The UserObserver will auto-create standard availability with defaults (8hrs Mon-Fri)
+        // BUT if admin provided custom hours, override them
+        if ($request->has('availability')) {
+            foreach ($request->availability as $dayOfWeek => $hours) {
+                \App\Models\UserStandardAvailability::where('user_id', $user->id)
+                    ->where('day_of_week', $dayOfWeek)
+                    ->update(['hours_available' => $hours ?? 0]);
+            }
+        }
 
         // Assign roles – sanitize to only allowed roles
         if ($request->has('roles')) {
@@ -248,11 +261,12 @@ class UserController extends Controller
         $validated = $request->validate([
             'username'       => ['required', 'string', 'max:70', Rule::unique('users')->ignore($user->id)],
             'email'          => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'password'       => 'nullable|string|min:8|confirmed',
+            'password'       => 'nullable|string|min:10|confirmed', // Changed to 10
             'first_name'     => 'required|string|max:50',
             'last_name'      => 'required|string|max:50',
             'company_id'     => 'nullable|exists:companies,id',
             'department_id'  => 'nullable|exists:departments,id',
+            'hourly_cost'    => 'nullable|numeric|min:0', // ADDED
             'status'         => 'nullable|in:active,inactive,hidden',
             'type'           => 'nullable|integer',
             'phone'          => 'nullable|string|max:30',
@@ -265,6 +279,8 @@ class UserController extends Controller
             'zip'            => 'nullable|string|max:20',
             'country'        => 'nullable|string|max:50',
             'birthday'       => 'nullable|string|max:20',
+            'availability'   => 'nullable|array', // ADDED
+            'availability.*' => 'nullable|numeric|min:0|max:24', // ADDED
             'roles'          => 'nullable|array',
             'roles.*'        => 'exists:roles,name',
         ]);
@@ -282,6 +298,21 @@ class UserController extends Controller
         }
 
         $user->update($validated);
+
+        // Update standard availability
+        if ($request->has('availability')) {
+            foreach ($request->availability as $dayOfWeek => $hours) {
+                \App\Models\UserStandardAvailability::updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'day_of_week' => $dayOfWeek,
+                    ],
+                    [
+                        'hours_available' => $hours ?? 0,
+                    ]
+                );
+            }
+        }
 
         // Sync roles – sanitize to only allowed roles
         if ($request->has('roles')) {
