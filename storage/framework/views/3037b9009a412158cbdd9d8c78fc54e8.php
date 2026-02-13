@@ -1,38 +1,36 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'View Project'); ?>
 
-@section('title', 'View Project')
+<?php $__env->startSection('module-name', 'Projects'); ?>
 
-@section('module-name', 'Projects')
+<?php $__env->startSection('sidebar-section-title', 'PROJECT MENU'); ?>
 
-@section('sidebar-section-title', 'PROJECT MENU')
-
-@section('sidebar-menu')
+<?php $__env->startSection('sidebar-menu'); ?>
     <!-- Project Overview -->
-    <a href="{{ route('projects.show', $project) }}" class="sidebar-menu-item active">
+    <a href="<?php echo e(route('projects.show', $project)); ?>" class="sidebar-menu-item active">
         <svg class="sidebar-menu-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
         </svg>
         <span class="sidebar-menu-item-text">Overview</span>
     </a>
 
-    @if($project->isOwnedBy(auth()->user()))
-    <a href="{{ route('projects.edit', $project) }}" class="sidebar-menu-item">
+    <?php if($project->isOwnedBy(auth()->user())): ?>
+    <a href="<?php echo e(route('projects.edit', $project)); ?>" class="sidebar-menu-item">
         <svg class="sidebar-menu-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
         </svg>
         <span class="sidebar-menu-item-text">Edit Project</span>
     </a>
-    @endif
+    <?php endif; ?>
 
     <!-- Quick Access: Team -->
-    @if($project->isOwnedBy(auth()->user()))
+    <?php if($project->isOwnedBy(auth()->user())): ?>
     <button data-slideout="team-slideout" class="sidebar-menu-item w-full text-left">
         <svg class="sidebar-menu-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
         </svg>
-        <span class="sidebar-menu-item-text">Team ({{ $stats['team_members'] }})</span>
+        <span class="sidebar-menu-item-text">Team (<?php echo e($stats['team_members']); ?>)</span>
     </button>
-    @endif
+    <?php endif; ?>
 
     <!-- Quick Access: Resources -->
     <button data-slideout="resources-slideout" class="sidebar-menu-item w-full text-left">
@@ -60,14 +58,14 @@
     </div>
 
     <!-- EVM -->
-    @if($project->isOwnedBy(auth()->user()))
+    <?php if($project->isOwnedBy(auth()->user())): ?>
     <button data-slideout="evm-slideout" class="sidebar-menu-item w-full text-left">
         <svg class="sidebar-menu-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
         </svg>
         <span class="sidebar-menu-item-text">EVM</span>
     </button>
-    @endif
+    <?php endif; ?>
 
     <!-- Reports -->
     <button data-slideout="reports-slideout" class="sidebar-menu-item w-full text-left">
@@ -76,16 +74,16 @@
         </svg>
         <span class="sidebar-menu-item-text">Reports</span>
     </button>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('header')
+<?php $__env->startSection('header'); ?>
     <div class="flex items-center justify-between">
         <div>
-            <a href="{{ route('projects.index') }}" class="text-primary-600 hover:text-primary-900 text-sm mb-2 inline-block">
+            <a href="<?php echo e(route('projects.index')); ?>" class="text-primary-600 hover:text-primary-900 text-sm mb-2 inline-block">
                 ← Back to Projects
             </a>
-            <h1 class="text-2xl font-bold text-gray-900">{{ $project->name }}</h1>
-            <p class="text-sm text-gray-600 mt-1">{{ $project->short_name }}</p>
+            <h1 class="text-2xl font-bold text-gray-900"><?php echo e($project->name); ?></h1>
+            <p class="text-sm text-gray-600 mt-1"><?php echo e($project->short_name); ?></p>
         </div>
 
         <div class="flex gap-2 items-center">
@@ -96,29 +94,29 @@
                 </svg>
             </button>
 
-            @if($project->isOwnedBy(auth()->user()))
-            <a href="{{ route('projects.edit', $project) }}" class="icon-btn icon-btn-edit" title="Edit Project">
+            <?php if($project->isOwnedBy(auth()->user())): ?>
+            <a href="<?php echo e(route('projects.edit', $project)); ?>" class="icon-btn icon-btn-edit" title="Edit Project">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                 </svg>
             </a>
 
-            <form method="POST" action="{{ route('projects.destroy', $project) }}" class="inline-block"
+            <form method="POST" action="<?php echo e(route('projects.destroy', $project)); ?>" class="inline-block"
                   onsubmit="return confirm('Are you sure you want to delete this project?');">
-                @csrf
-                @method('DELETE')
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('DELETE'); ?>
                 <button type="submit" class="icon-btn icon-btn-delete" title="Delete Project">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                     </svg>
                 </button>
             </form>
-            @endif
+            <?php endif; ?>
         </div>
     </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         
@@ -126,9 +124,9 @@
         <div class="widget-card">
             <div class="widget-content">
                 <p class="text-sm text-gray-600">Progress</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">{{ $project->percent_complete }}%</p>
+                <p class="text-2xl font-bold text-gray-900 mt-1"><?php echo e($project->percent_complete); ?>%</p>
                 <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div class="bg-blue-600 h-2 rounded-full transition-all" style="width: {{ $project->percent_complete }}%"></div>
+                    <div class="bg-blue-600 h-2 rounded-full transition-all" style="width: <?php echo e($project->percent_complete); ?>%"></div>
                 </div>
             </div>
         </div>
@@ -137,8 +135,8 @@
         <div class="widget-card">
             <div class="widget-content">
                 <p class="text-sm text-gray-600">Tasks</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">{{ $stats['total_tasks'] }}</p>
-                <p class="text-xs mt-1 text-green-600">{{ $stats['completed_tasks'] }} completed</p>
+                <p class="text-2xl font-bold text-gray-900 mt-1"><?php echo e($stats['total_tasks']); ?></p>
+                <p class="text-xs mt-1 text-green-600"><?php echo e($stats['completed_tasks']); ?> completed</p>
             </div>
         </div>
 
@@ -146,7 +144,7 @@
         <div class="widget-card cursor-pointer" data-slideout="team-slideout">
             <div class="widget-content">
                 <p class="text-sm text-gray-600">Team Members</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">{{ $stats['team_members'] }}</p>
+                <p class="text-2xl font-bold text-gray-900 mt-1"><?php echo e($stats['team_members']); ?></p>
             </div>
         </div>
 
@@ -154,15 +152,16 @@
         <div class="widget-card">
             <div class="widget-content">
                 <p class="text-sm text-gray-600">Timeline</p>
-                <p class="text-2xl font-bold {{ $project->is_overdue ? 'text-red-600' : 'text-gray-900' }} mt-1">
-                    @if($stats['days_remaining'] !== null)
-                        {{ abs($stats['days_remaining']) }}d
-                    @else
+                <p class="text-2xl font-bold <?php echo e($project->is_overdue ? 'text-red-600' : 'text-gray-900'); ?> mt-1">
+                    <?php if($stats['days_remaining'] !== null): ?>
+                        <?php echo e(abs($stats['days_remaining'])); ?>d
+                    <?php else: ?>
                         N/A
-                    @endif
+                    <?php endif; ?>
                 </p>
-                <p class="text-xs mt-1 {{ $project->is_overdue ? 'text-red-600' : 'text-gray-600' }}">
-                    {{ $project->is_overdue ? 'overdue' : 'remaining' }}
+                <p class="text-xs mt-1 <?php echo e($project->is_overdue ? 'text-red-600' : 'text-gray-600'); ?>">
+                    <?php echo e($project->is_overdue ? 'overdue' : 'remaining'); ?>
+
                 </p>
             </div>
         </div>
@@ -171,7 +170,7 @@
         <div class="widget-card">
             <div class="widget-content">
                 <p class="text-sm text-gray-600">Target Budget</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">${{ number_format($project->target_budget, 0) }}</p>
+                <p class="text-2xl font-bold text-gray-900 mt-1">$<?php echo e(number_format($project->target_budget, 0)); ?></p>
             </div>
         </div>
 
@@ -179,7 +178,7 @@
         <div class="widget-card">
             <div class="widget-content">
                 <p class="text-sm text-gray-600">Overdue Tasks</p>
-                <p class="text-2xl font-bold text-red-600 mt-1">{{ $stats['overdue_tasks'] }}</p>
+                <p class="text-2xl font-bold text-red-600 mt-1"><?php echo e($stats['overdue_tasks']); ?></p>
             </div>
         </div>
     </div>
@@ -203,9 +202,9 @@
                     </div>
                 </div>
                 <div class="widget-content">
-                    @if($project->tasks->count() > 0)
+                    <?php if($project->tasks->count() > 0): ?>
                         <div class="space-y-1">
-                            @php
+                            <?php
                                 // Get top-level tasks (where parent_id equals task_id, or no parent)
                                 $topLevelTasks = $project->tasks->filter(function($task) {
                                     return $task->parent_id == $task->id || is_null($task->parent_id);
@@ -300,13 +299,13 @@
                                     }
                                 } // End displayTask function
                                 } // End function_exists check
-                            @endphp
+                            ?>
                             
-                            @foreach($topLevelTasks as $task)
-                                @php displayTask($task, $project->tasks); @endphp
-                            @endforeach
+                            <?php $__currentLoopData = $topLevelTasks; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $task): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <?php displayTask($task, $project->tasks); ?>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </div>
-                    @else
+                    <?php else: ?>
                         <div class="text-center py-12">
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -322,7 +321,7 @@
                                 </button>
                             </div>
                         </div>
-                    @endif
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -339,67 +338,68 @@
                     <div class="space-y-3 text-sm">
                         <div>
                             <label class="text-sm font-medium text-gray-600">Company</label>
-                            <p class="text-gray-900 mt-1">{{ $project->company->name ?? 'N/A' }}</p>
+                            <p class="text-gray-900 mt-1"><?php echo e($project->company->name ?? 'N/A'); ?></p>
                         </div>
 
-                        @if($project->department)
+                        <?php if($project->department): ?>
                         <div>
                             <label class="text-sm font-medium text-gray-600">Department</label>
-                            <p class="text-gray-900 mt-1">{{ $project->department->name }}</p>
+                            <p class="text-gray-900 mt-1"><?php echo e($project->department->name); ?></p>
                         </div>
-                        @endif
+                        <?php endif; ?>
 
                         <div>
                             <label class="text-sm font-medium text-gray-600">Owner</label>
-                            <p class="text-gray-900 mt-1">{{ $project->owner->first_name ?? '' }} {{ $project->owner->last_name ?? '' }}</p>
+                            <p class="text-gray-900 mt-1"><?php echo e($project->owner->first_name ?? ''); ?> <?php echo e($project->owner->last_name ?? ''); ?></p>
                         </div>
 
-                        @if($project->url)
+                        <?php if($project->url): ?>
                         <div>
                             <label class="text-sm font-medium text-gray-600">URL</label>
                             <p class="text-gray-900 mt-1">
-                                <a href="{{ $project->url }}" target="_blank" class="text-primary-600 hover:text-primary-900">
-                                    {{ $project->url }}
+                                <a href="<?php echo e($project->url); ?>" target="_blank" class="text-primary-600 hover:text-primary-900">
+                                    <?php echo e($project->url); ?>
+
                                 </a>
                             </p>
                         </div>
-                        @endif
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
 
             <!-- Timeline Widget -->
-            @if($project->start_date || $project->end_date)
+            <?php if($project->start_date || $project->end_date): ?>
             <div class="widget-card">
                 <div class="widget-header">
                     <h2 class="widget-title">Timeline</h2>
                 </div>
                 <div class="widget-content">
                     <div class="space-y-3 text-sm">
-                        @if($project->start_date)
+                        <?php if($project->start_date): ?>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Start Date:</span>
-                            <span class="text-gray-900 font-medium">{{ $project->start_date->format('M d, Y') }}</span>
+                            <span class="text-gray-900 font-medium"><?php echo e($project->start_date->format('M d, Y')); ?></span>
                         </div>
-                        @endif
+                        <?php endif; ?>
 
-                        @if($project->end_date)
+                        <?php if($project->end_date): ?>
                         <div class="flex justify-between">
                             <span class="text-gray-600">End Date:</span>
-                            <span class="text-gray-900 font-medium">{{ $project->end_date->format('M d, Y') }}</span>
+                            <span class="text-gray-900 font-medium"><?php echo e($project->end_date->format('M d, Y')); ?></span>
                         </div>
-                        @endif
+                        <?php endif; ?>
 
-                        @if($project->actual_end_date)
+                        <?php if($project->actual_end_date): ?>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Actual End:</span>
-                            <span class="text-gray-900 font-medium">{{ $project->actual_end_date->format('M d, Y') }}</span>
+                            <span class="text-gray-900 font-medium"><?php echo e($project->actual_end_date->format('M d, Y')); ?></span>
                         </div>
-                        @endif
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
-            @endif
+            <?php endif; ?>
 
             <!-- Status Widget -->
             <div class="widget-card">
@@ -411,53 +411,57 @@
                         <div class="flex justify-between items-center">
                             <span class="text-gray-600">Status:</span>
                             <span class="px-3 py-1 text-xs font-semibold rounded-full 
-                                {{ $project->status === 3 ? 'bg-green-100 text-green-800' : '' }}
-                                {{ $project->status === 4 ? 'bg-yellow-100 text-yellow-800' : '' }}
-                                {{ $project->status === 5 ? 'bg-blue-100 text-blue-800' : '' }}
-                                {{ !in_array($project->status, [3,4,5]) ? 'bg-gray-100 text-gray-800' : '' }}">
-                                {{ $project->status_text }}
+                                <?php echo e($project->status === 3 ? 'bg-green-100 text-green-800' : ''); ?>
+
+                                <?php echo e($project->status === 4 ? 'bg-yellow-100 text-yellow-800' : ''); ?>
+
+                                <?php echo e($project->status === 5 ? 'bg-blue-100 text-blue-800' : ''); ?>
+
+                                <?php echo e(!in_array($project->status, [3,4,5]) ? 'bg-gray-100 text-gray-800' : ''); ?>">
+                                <?php echo e($project->status_text); ?>
+
                             </span>
                         </div>
 
-                        @if($project->priority)
+                        <?php if($project->priority): ?>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Priority:</span>
-                            <span class="text-gray-900 font-medium">{{ $project->priority }}</span>
+                            <span class="text-gray-900 font-medium"><?php echo e($project->priority); ?></span>
                         </div>
-                        @endif
+                        <?php endif; ?>
 
                         <div class="flex justify-between border-t border-gray-200 pt-3">
                             <span class="text-gray-600">Created:</span>
-                            <span class="text-gray-900 font-medium">{{ $project->created_at->format('M d, Y') }}</span>
+                            <span class="text-gray-900 font-medium"><?php echo e($project->created_at->format('M d, Y')); ?></span>
                         </div>
 
-                        @if($project->last_edited)
+                        <?php if($project->last_edited): ?>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Last Updated:</span>
-                            <span class="text-gray-900 font-medium">{{ $project->last_edited->format('M d, Y') }}</span>
+                            <span class="text-gray-900 font-medium"><?php echo e($project->last_edited->format('M d, Y')); ?></span>
                         </div>
-                        @endif
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
 
             <!-- Description Widget -->
-            @if($project->description)
+            <?php if($project->description): ?>
             <div class="widget-card">
                 <div class="widget-header">
                     <h2 class="widget-title">Description</h2>
                 </div>
                 <div class="widget-content">
-                    <p class="text-gray-900 text-sm whitespace-pre-line">{{ $project->description }}</p>
+                    <p class="text-gray-900 text-sm whitespace-pre-line"><?php echo e($project->description); ?></p>
                 </div>
             </div>
-            @endif
+            <?php endif; ?>
         </div>
     </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-{{-- Right Edge Tabs for Project Page --}}
-@section('right-tabs')
+
+<?php $__env->startSection('right-tabs'); ?>
     <!-- Gantt Chart Tab -->
     <button data-slideout="gantt-slideout" class="slideout-tab" title="Gantt Chart">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -466,7 +470,7 @@
     </button>
 
     <!-- Team Tab -->
-    @if($project->isOwnedBy(auth()->user()))
+    <?php if($project->isOwnedBy(auth()->user())): ?>
     <button data-slideout="team-slideout" class="slideout-tab" title="Team">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -479,7 +483,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.75 12.75h1.5a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5ZM12 6a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 12 6ZM12 18a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 12 18ZM3.75 6.75h1.5a.75.75 0 1 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5ZM5.25 18.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 0 1.5ZM3 12a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 3 12ZM9 3.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5ZM12.75 12a2.25 2.25 0 1 1 4.5 0 2.25 2.25 0 0 1-4.5 0ZM9 15.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" />
 		</svg>
     </button>
-    @endif
+    <?php endif; ?>
     
     <!-- Resources Tab -->
     <button data-slideout="resources-slideout" class="slideout-tab" title="Resources">
@@ -490,13 +494,13 @@
     </button>
     
     <!-- EVM Tab -->
-    @if($project->isOwnedBy(auth()->user()))
+    <?php if($project->isOwnedBy(auth()->user())): ?>
     <button data-slideout="evm-slideout" class="slideout-tab" title="EVM">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
         </svg>
     </button>
-    @endif
+    <?php endif; ?>
     
     <!-- Reports Tab -->
     <button data-slideout="reports-slideout" class="slideout-tab" title="Reports">
@@ -504,10 +508,10 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
         </svg>
     </button>
-@endsection
+<?php $__env->stopSection(); ?>
 
-{{-- Slideout Panels for Project Page --}}
-@section('slideout-panels')
+
+<?php $__env->startSection('slideout-panels'); ?>
     <!-- Gantt Chart Slideout (Fullscreen) -->
     <div id="gantt-slideout" class="slideout-panel" style="width: 100vw; max-width: 100vw;">
         <div class="slideout-header">
@@ -519,37 +523,38 @@
             </button>
         </div>
         <div class="slideout-content" style="height: calc(100vh - 64px); overflow: auto;">
-            {{-- Stats Bar at Top --}}
+            
             <div class="grid grid-cols-4 gap-4 mb-6 pb-6 border-b border-gray-200">
                 <div class="text-center">
                     <p class="text-sm text-gray-600 mb-1">Tasks</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ $stats['total_tasks'] }}</p>
-                    <p class="text-xs text-green-600 mt-1">{{ $stats['completed_tasks'] }} completed</p>
+                    <p class="text-3xl font-bold text-gray-900"><?php echo e($stats['total_tasks']); ?></p>
+                    <p class="text-xs text-green-600 mt-1"><?php echo e($stats['completed_tasks']); ?> completed</p>
                 </div>
                 <div class="text-center">
                     <p class="text-sm text-gray-600 mb-1">Team Members</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ $stats['team_members'] }}</p>
+                    <p class="text-3xl font-bold text-gray-900"><?php echo e($stats['team_members']); ?></p>
                 </div>
                 <div class="text-center">
                     <p class="text-sm text-gray-600 mb-1">Timeline</p>
-                    <p class="text-3xl font-bold {{ $project->is_overdue ? 'text-red-600' : 'text-gray-900' }}">
-                        @if($stats['days_remaining'] !== null)
-                            {{ abs($stats['days_remaining']) }}d
-                        @else
+                    <p class="text-3xl font-bold <?php echo e($project->is_overdue ? 'text-red-600' : 'text-gray-900'); ?>">
+                        <?php if($stats['days_remaining'] !== null): ?>
+                            <?php echo e(abs($stats['days_remaining'])); ?>d
+                        <?php else: ?>
                             N/A
-                        @endif
+                        <?php endif; ?>
                     </p>
-                    <p class="text-xs {{ $project->is_overdue ? 'text-red-600' : 'text-gray-600' }} mt-1">
-                        {{ $project->is_overdue ? 'remaining' : 'overdue' }}
+                    <p class="text-xs <?php echo e($project->is_overdue ? 'text-red-600' : 'text-gray-600'); ?> mt-1">
+                        <?php echo e($project->is_overdue ? 'remaining' : 'overdue'); ?>
+
                     </p>
                 </div>
                 <div class="text-center">
                     <p class="text-sm text-gray-600 mb-1">Target Budget</p>
-                    <p class="text-3xl font-bold text-gray-900">${{ number_format($project->target_budget/1000, 0) }}k</p>
+                    <p class="text-3xl font-bold text-gray-900">$<?php echo e(number_format($project->target_budget/1000, 0)); ?>k</p>
                 </div>
             </div>
 
-            {{-- Gantt Chart Area --}}
+            
             <div class="bg-white rounded-lg border border-gray-200 p-8">
                 <div class="text-center py-16">
                     <svg class="w-24 h-24 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -590,7 +595,7 @@
     </div>
 
     <!-- Team Slideout -->
-    @if($project->isOwnedBy(auth()->user()))
+    <?php if($project->isOwnedBy(auth()->user())): ?>
     <div id="team-slideout" class="slideout-panel">
         <div class="slideout-header">
             <h3 class="slideout-title">Team Members</h3>
@@ -601,7 +606,7 @@
             </button>
         </div>
         <div class="slideout-content">
-            <p class="text-gray-600 mb-4">{{ $project->name }} Team</p>
+            <p class="text-gray-600 mb-4"><?php echo e($project->name); ?> Team</p>
             
             <button class="btn-primary w-full mb-4">
                 <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -612,22 +617,24 @@
             
             <!-- Team List -->
             <div class="space-y-2">
-                @forelse($project->team as $member)
+                <?php $__empty_1 = true; $__currentLoopData = $project->team; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $member): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                 <div class="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-3">
                             <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
-                                {{ substr($member->user->first_name, 0, 1) }}{{ substr($member->user->last_name, 0, 1) }}
+                                <?php echo e(substr($member->user->first_name, 0, 1)); ?><?php echo e(substr($member->user->last_name, 0, 1)); ?>
+
                             </div>
                             <div>
-                                <div class="font-medium text-gray-900">{{ $member->user->first_name }} {{ $member->user->last_name }}</div>
+                                <div class="font-medium text-gray-900"><?php echo e($member->user->first_name); ?> <?php echo e($member->user->last_name); ?></div>
                                 <div class="text-sm text-gray-500">
-                                    @if($member->role)
-                                        {{ $member->role->role_name }}
-                                    @endif
-                                    @if($member->allocation_percent > 0)
-                                        • {{ $member->allocation_percent }}%
-                                    @endif
+                                    <?php if($member->role): ?>
+                                        <?php echo e($member->role->role_name); ?>
+
+                                    <?php endif; ?>
+                                    <?php if($member->allocation_percent > 0): ?>
+                                        • <?php echo e($member->allocation_percent); ?>%
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -638,13 +645,13 @@
                         </button>
                     </div>
                 </div>
-                @empty
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                 <p class="text-sm text-gray-500 text-center py-4">No team members yet</p>
-                @endforelse
+                <?php endif; ?>
             </div>
         </div>
     </div>
-    @endif
+    <?php endif; ?>
 
     <!-- Resources Slideout -->
     <div id="resources-slideout" class="slideout-panel">
@@ -659,44 +666,44 @@
         <div class="slideout-content">
             <p class="text-gray-600 mb-4">Equipment & Assets</p>
             
-            @if($project->isOwnedBy(auth()->user()))
+            <?php if($project->isOwnedBy(auth()->user())): ?>
             <button class="btn-primary w-full mb-4">
                 <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 Add Resource
             </button>
-            @endif
+            <?php endif; ?>
             
             <!-- Resources List -->
             <div class="space-y-2">
-                @forelse($project->resources as $resource)
+                <?php $__empty_1 = true; $__currentLoopData = $project->resources; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $resource): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                 <div class="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-3">
                             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                             </svg>
-                            <div class="font-medium text-gray-900">{{ $resource->resource->resource_name }}</div>
+                            <div class="font-medium text-gray-900"><?php echo e($resource->resource->resource_name); ?></div>
                         </div>
-                        @if($project->isOwnedBy(auth()->user()))
+                        <?php if($project->isOwnedBy(auth()->user())): ?>
                         <button class="text-gray-400 hover:text-red-600">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                         </button>
-                        @endif
+                        <?php endif; ?>
                     </div>
                 </div>
-                @empty
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                 <p class="text-sm text-gray-500 text-center py-4">No resources assigned</p>
-                @endforelse
+                <?php endif; ?>
             </div>
         </div>
     </div>
 
     <!-- EVM Slideout -->
-    @if($project->isOwnedBy(auth()->user()))
+    <?php if($project->isOwnedBy(auth()->user())): ?>
     <div id="evm-slideout" class="slideout-panel">
         <div class="slideout-header">
             <h3 class="slideout-title">Earned Value Management</h3>
@@ -714,7 +721,7 @@
                 <div class="bg-blue-50 rounded-lg p-4">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-xs text-gray-600">BAC</span>
-                        <span class="text-sm font-semibold text-gray-900">${{ number_format($project->target_budget, 0) }}</span>
+                        <span class="text-sm font-semibold text-gray-900">$<?php echo e(number_format($project->target_budget, 0)); ?></span>
                     </div>
                     <p class="text-xs text-gray-500">Budget at Completion</p>
                 </div>
@@ -738,7 +745,7 @@
                 <div class="bg-red-50 rounded-lg p-4">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-xs text-gray-600">Actual Cost (AC)</span>
-                        <span class="text-sm font-semibold text-gray-900">${{ number_format($project->actual_budget, 0) }}</span>
+                        <span class="text-sm font-semibold text-gray-900">$<?php echo e(number_format($project->actual_budget, 0)); ?></span>
                     </div>
                     <p class="text-xs text-gray-500">From task budgets</p>
                 </div>
@@ -763,7 +770,7 @@
             </div>
         </div>
     </div>
-    @endif
+    <?php endif; ?>
 
     <!-- Reports Slideout -->
     <div id="reports-slideout" class="slideout-panel">
@@ -819,7 +826,7 @@
     </div>
     
     <!-- Settings Slideout (Owner Only) -->
-    @if($project->isOwnedBy(auth()->user()))
+    <?php if($project->isOwnedBy(auth()->user())): ?>
     <div id="settings-slideout" class="slideout-panel">
         <div class="slideout-header">
             <h3 class="slideout-title">Project Settings</h3>
@@ -832,11 +839,11 @@
         <div class="slideout-content">
             <p class="text-gray-600 mb-6">Configure project-specific settings and custom fields</p>
             
-            <form id="projectSettingsForm" method="POST" action="{{ route('projects.updateSettings', $project) }}">
-                @csrf
-                @method('PUT')
+            <form id="projectSettingsForm" method="POST" action="<?php echo e(route('projects.updateSettings', $project)); ?>">
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('PUT'); ?>
                 
-                {{-- Project Phases Section --}}
+                
                 <div class="mb-8">
                     <h4 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -847,21 +854,21 @@
                     <p class="text-sm text-gray-600 mb-3">Define phases with optional completion percentage</p>
                     
                     <div id="phasesList" class="space-y-3 mb-3">
-                        @php
+                        <?php
                             // Ensure phases is always an array
                             $phases = $project->phases ?? [];
                             // If it's a string or null, convert to empty array
                             if (!is_array($phases)) {
                                 $phases = [];
                             }
-                        @endphp
-                        @forelse($phases as $index => $phase)
-                        @php
+                        ?>
+                        <?php $__empty_1 = true; $__currentLoopData = $phases; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $phase): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                        <?php
                             // Parse phase: could be "50|Planning" or just "Planning"
                             $parts = explode('|', $phase);
                             $percentage = count($parts) === 2 ? $parts[0] : '';
                             $phaseName = count($parts) === 2 ? $parts[1] : $phase;
-                        @endphp
+                        ?>
                         <div class="phase-item bg-gray-50 p-3 rounded-lg border border-gray-200">
                             <div class="flex items-start space-x-2">
                                 <div class="flex-1 grid grid-cols-4 gap-2">
@@ -869,7 +876,7 @@
                                         <label class="block text-xs text-gray-600 mb-1">% Complete</label>
                                         <input type="number" 
                                                class="phase-percentage w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-                                               value="{{ $percentage }}"
+                                               value="<?php echo e($percentage); ?>"
                                                min="0"
                                                max="100"
                                                placeholder="0-100">
@@ -878,7 +885,7 @@
                                         <label class="block text-xs text-gray-600 mb-1">Phase Name</label>
                                         <input type="text" 
                                                class="phase-name w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
-                                               value="{{ $phaseName }}"
+                                               value="<?php echo e($phaseName); ?>"
                                                placeholder="e.g., Planning, Execution, Testing">
                                     </div>
                                 </div>
@@ -888,9 +895,9 @@
                                     </svg>
                                 </button>
                             </div>
-                            <input type="hidden" name="phases[]" class="phase-combined" value="{{ $phase }}">
+                            <input type="hidden" name="phases[]" class="phase-combined" value="<?php echo e($phase); ?>">
                         </div>
-                        @empty
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                         <div class="phase-item bg-gray-50 p-3 rounded-lg border border-gray-200">
                             <div class="flex items-start space-x-2">
                                 <div class="flex-1 grid grid-cols-4 gap-2">
@@ -919,7 +926,7 @@
                             </div>
                             <input type="hidden" name="phases[]" class="phase-combined" value="">
                         </div>
-                        @endforelse
+                        <?php endif; ?>
                     </div>
                     
                     <button type="button" id="addPhaseBtn" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
@@ -930,7 +937,7 @@
                     </button>
                 </div>
                 
-                {{-- Custom Fields Section --}}
+                
                 <div class="mb-8">
                     <h4 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -940,9 +947,9 @@
                     </h4>
                     <p class="text-sm text-gray-600 mb-3">Project-specific custom fields</p>
                     
-                    @php
+                    <?php
                         $customFields = $project->custom_fields ?? [];
-                    @endphp
+                    ?>
                     
                     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
                         <p class="text-sm text-gray-600 mb-2">Custom fields coming soon</p>
@@ -950,7 +957,7 @@
                     </div>
                 </div>
                 
-                {{-- Save Button --}}
+                
                 <div class="flex items-center justify-between pt-4 border-t border-gray-200">
                     <button type="button" class="slideout-close-btn px-4 py-2 text-gray-600 hover:text-gray-800">
                         Cancel
@@ -962,17 +969,17 @@
             </form>
         </div>
     </div>
-    @endif
-@endsection
+    <?php endif; ?>
+<?php $__env->stopSection(); ?>
 
-{{-- Fullscreen Task View Overlay --}}
+
 <div id="fullscreenTaskView" class="hidden fixed inset-0 z-[100] bg-gray-900 bg-opacity-95">
     <div class="h-full flex flex-col">
-        {{-- Fullscreen Header --}}
+        
         <div class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
             <div>
-                <h2 class="text-xl font-bold text-white">{{ $project->name }} - Tasks</h2>
-                <p class="text-sm text-gray-400">{{ $stats['total_tasks'] }} tasks • {{ $stats['completed_tasks'] }} completed</p>
+                <h2 class="text-xl font-bold text-white"><?php echo e($project->name); ?> - Tasks</h2>
+                <p class="text-sm text-gray-400"><?php echo e($stats['total_tasks']); ?> tasks • <?php echo e($stats['completed_tasks']); ?> completed</p>
             </div>
             <div class="flex items-center space-x-3">
                 <button class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm">
@@ -990,13 +997,13 @@
             </div>
         </div>
 
-        {{-- Fullscreen Content --}}
+        
         <div class="flex-1 overflow-auto p-6">
             <div class="max-w-7xl mx-auto">
                 <div class="bg-white rounded-lg shadow-lg">
                     <div class="p-6">
                         <div id="fullscreenTaskContent">
-                            {{-- Task content will be cloned here --}}
+                            
                         </div>
                     </div>
                 </div>
@@ -1269,12 +1276,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         </label>
                         <select name="owner_id" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="{{ auth()->id() }}">{{ auth()->user()->name }} (Me)</option>
-                            @foreach($project->team as $member)
-                                @if($member->id !== auth()->id())
-                                <option value="{{ $member->id }}">{{ $member->name }}</option>
-                                @endif
-                            @endforeach
+                            <option value="<?php echo e(auth()->id()); ?>"><?php echo e(auth()->user()->name); ?> (Me)</option>
+                            <?php $__currentLoopData = $project->team; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $member): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <?php if($member->id !== auth()->id()): ?>
+                                <option value="<?php echo e($member->id); ?>"><?php echo e($member->name); ?></option>
+                                <?php endif; ?>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </select>
                     </div>
 
@@ -1283,33 +1290,33 @@ document.addEventListener('DOMContentLoaded', function() {
                         <select name="parent_id" id="parentTaskSelect"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="">None (Top Level)</option>
-                            @foreach($project->tasks as $task)
-                                @if(is_null($task->parent_id) || $task->parent_id == $task->id)
-                                    {{-- Top level task (parent is null or equals own ID) --}}
-                                    <option value="{{ $task->id }}">{{ $task->name }}</option>
-                                    @if($task->children && $task->children->count() > 0)
-                                        @foreach($task->children as $child1)
-                                            @if($child1->parent_id != $child1->id)
-                                                <option value="{{ $child1->id }}">— {{ $child1->name }}</option>
-                                                @if($child1->children && $child1->children->count() > 0)
-                                                    @foreach($child1->children as $child2)
-                                                        @if($child2->parent_id != $child2->id)
-                                                            <option value="{{ $child2->id }}">— — {{ $child2->name }}</option>
-                                                            @if($child2->children && $child2->children->count() > 0)
-                                                                @foreach($child2->children as $child3)
-                                                                    @if($child3->parent_id != $child3->id)
-                                                                        <option value="{{ $child3->id }}">— — — {{ $child3->name }}</option>
-                                                                    @endif
-                                                                @endforeach
-                                                            @endif
-                                                        @endif
-                                                    @endforeach
-                                                @endif
-                                            @endif
-                                        @endforeach
-                                    @endif
-                                @endif
-                            @endforeach
+                            <?php $__currentLoopData = $project->tasks; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $task): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <?php if(is_null($task->parent_id) || $task->parent_id == $task->id): ?>
+                                    
+                                    <option value="<?php echo e($task->id); ?>"><?php echo e($task->name); ?></option>
+                                    <?php if($task->children && $task->children->count() > 0): ?>
+                                        <?php $__currentLoopData = $task->children; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $child1): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <?php if($child1->parent_id != $child1->id): ?>
+                                                <option value="<?php echo e($child1->id); ?>">— <?php echo e($child1->name); ?></option>
+                                                <?php if($child1->children && $child1->children->count() > 0): ?>
+                                                    <?php $__currentLoopData = $child1->children; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $child2): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                        <?php if($child2->parent_id != $child2->id): ?>
+                                                            <option value="<?php echo e($child2->id); ?>">— — <?php echo e($child2->name); ?></option>
+                                                            <?php if($child2->children && $child2->children->count() > 0): ?>
+                                                                <?php $__currentLoopData = $child2->children; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $child3): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                                    <?php if($child3->parent_id != $child3->id): ?>
+                                                                        <option value="<?php echo e($child3->id); ?>">— — — <?php echo e($child3->name); ?></option>
+                                                                    <?php endif; ?>
+                                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                                            <?php endif; ?>
+                                                        <?php endif; ?>
+                                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </select>
                     </div>
                 </div>
@@ -1496,7 +1503,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Build JSON data - only include non-empty values
             const data = {
-                project_id: {{ $project->id }},
+                project_id: <?php echo e($project->id); ?>,
                 name: formData.get('name'),
                 owner_id: formData.get('owner_id'),
             };
@@ -1518,7 +1525,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Sending data:', data);
 
             // Submit via AJAX
-            fetch('{{ route("tasks.store") }}', {
+            fetch('<?php echo e(route("tasks.store")); ?>', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1577,3 +1584,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/projects/show.blade.php ENDPATH**/ ?>
