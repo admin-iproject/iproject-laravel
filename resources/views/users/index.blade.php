@@ -70,26 +70,67 @@
             </div>
 
             <!-- Search and Filters -->
-            <div class="bg-white rounded-lg shadow p-2 mb-4">
-                <form method="GET" action="{{ route('users.index') }}" class="flex gap-4">
+            <div class="bg-white rounded-lg shadow p-4 mb-4">
+                <form method="GET" action="{{ route('users.index') }}" class="space-y-4">
                     <input type="hidden" name="status" value="{{ $status }}">
-                    <div class="flex-1">
-                        <input 
-                            type="text" 
-                            name="search" 
-                            value="{{ request('search') }}"
-                            placeholder="Search by name, email, or username..."
-                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                        >
+                    
+                    <!-- Search Bar -->
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <input 
+                                type="text" 
+                                name="search" 
+                                value="{{ request('search') }}"
+                                placeholder="Search by name, email, or username..."
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            >
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            Search
+                        </button>
+                        @if(request('search') || request('department_id') || request('skill_id'))
+                        <a href="{{ route('users.index', ['status' => $status]) }}" class="btn btn-secondary">
+                            Clear All
+                        </a>
+                        @endif
                     </div>
-                    <button type="submit" class="btn btn-primary">
-                        Search
-                    </button>
-                    @if(request('search'))
-                    <a href="{{ route('users.index', ['status' => $status]) }}" class="btn btn-secondary">
-                        Clear
-                    </a>
-                    @endif
+
+                    <!-- Filters Row -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Department Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                            <select 
+                                name="department_id" 
+                                onchange="this.form.submit()"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            >
+                                <option value="">All Departments</option>
+                                @foreach($departments as $dept)
+                                    <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>
+                                        {{ $dept->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Skill Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Skill</label>
+                            <select 
+                                name="skill_id" 
+                                onchange="this.form.submit()"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            >
+                                <option value="">All Skills</option>
+                                @foreach($skills as $skill)
+                                    <option value="{{ $skill->id }}" {{ request('skill_id') == $skill->id ? 'selected' : '' }}>
+                                        {{ $skill->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
                 </form>
             </div>
 
@@ -111,7 +152,7 @@
                                 Department
                             </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Roles
+                                Skills
                             </th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Actions
@@ -164,16 +205,16 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                @if($user->roles->count() > 0)
+                                @if($user->skills->count() > 0)
                                 <div class="flex flex-wrap gap-1">
-                                    @foreach($user->roles as $role)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                        {{ $role->name }}
+                                    @foreach($user->skills as $skill)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                        {{ $skill->name }}
                                     </span>
                                     @endforeach
                                 </div>
                                 @else
-                                <span class="text-gray-400">—</span>
+                                <span class="text-gray-400 text-xs">No skills</span>
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

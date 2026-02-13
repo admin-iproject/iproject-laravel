@@ -424,6 +424,30 @@
                         </div>
                     </div>
 
+                    <!-- Skills -->
+                    <div class="mb-6 border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Skills</h3>
+                        
+                        @if($companySkills->count() > 0)
+                            <div class="space-y-2">
+                                @foreach($companySkills as $skill)
+                                <label class="flex items-center">
+                                    <input 
+                                        type="checkbox" 
+                                        name="skills[]" 
+                                        value="{{ $skill->id }}"
+                                        {{ is_array(old('skills')) && in_array($skill->id, old('skills')) ? 'checked' : '' }}
+                                        class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                    >
+                                    <span class="ml-2 text-sm text-gray-700">{{ $skill->name }}</span>
+                                </label>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-sm text-gray-500">No skills available. Add skills to your company first.</p>
+                        @endif
+                    </div>
+
                     <!-- Buttons -->
                     <div class="flex justify-end gap-2 border-t pt-6">
                         <a href="{{ route('users.index') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-blue-300">

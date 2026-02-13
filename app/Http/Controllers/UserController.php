@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Company;
 use App\Models\Department;
+use App\Models\CompanySkill;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -27,7 +28,7 @@ class UserController extends Controller
         $status = $request->get('status', 'active');
         $currentUser = auth()->user();
 
-        $query = User::with(['company', 'department', 'roles'])
+        $query = User::with(['company', 'department', 'roles', 'skills'])
             ->orderBy('last_name')
             ->orderBy('first_name');
 
@@ -63,8 +64,15 @@ class UserController extends Controller
         }
 
         // Filter by department if provided
-        if ($request->has('department_id')) {
+        if ($request->has('department_id') && $request->department_id) {
             $query->where('department_id', $request->department_id);
+        }
+
+        // Filter by skill if provided
+        if ($request->has('skill_id') && $request->skill_id) {
+            $query->whereHas('skills', function($q) use ($request) {
+                $q->where('company_skill_id', $request->skill_id);
+            });
         }
 
         // Search functionality
@@ -92,7 +100,16 @@ class UserController extends Controller
             'hidden'   => (clone $countsQuery)->hidden()->count(),
         ];
 
-        return view('users.index', compact('users', 'status', 'counts'));
+        // Get departments and skills for filters
+        $departments = Department::where('company_id', $currentUser->company_id ?? 0)
+            ->orderBy('name')
+            ->get();
+            
+        $skills = CompanySkill::where('company_id', $currentUser->company_id ?? 0)
+            ->orderBy('name')
+            ->get();
+
+        return view('users.index', compact('users', 'status', 'counts', 'departments', 'skills'));
     }
 
     /**
@@ -117,7 +134,12 @@ class UserController extends Controller
         // Filter roles based on user type
         $roles = $this->getAvailableRoles($currentUser);
 
-        return view('users.create', compact('companies', 'departments', 'roles'));
+        // Load company skills
+        $companySkills = CompanySkill::where('company_id', $currentUser->company_id ?? 0)
+            ->orderBy('name')
+            ->get();
+
+        return view('users.create', compact('companies', 'departments', 'roles', 'companySkills'));
     }
 
     /**
@@ -200,6 +222,11 @@ class UserController extends Controller
             $user->syncRoles($sanitizedRoles);
         }
 
+        // Assign skills
+        if ($request->has('skills')) {
+            $user->skills()->sync($request->skills);
+        }
+
         return redirect()->route('users.show', $user)
             ->with('success', 'User created successfully');
     }
@@ -211,7 +238,7 @@ class UserController extends Controller
     {
         $this->authorize('view', $user);
 
-        $user->load(['company', 'department', 'parent', 'roles', 'permissions']);
+        $user->load(['company', 'department', 'parent', 'roles', 'permissions', 'skills']);
 
         $stats = [
             'owned_projects'   => $user->ownedProjects()->count(),
@@ -246,7 +273,12 @@ class UserController extends Controller
         // Filter roles based on user type
         $roles = $this->getAvailableRoles($currentUser);
 
-        return view('users.edit', compact('user', 'companies', 'departments', 'roles'));
+        // Load company skills
+        $companySkills = CompanySkill::where('company_id', $user->company_id ?? 0)
+            ->orderBy('name')
+            ->get();
+
+        return view('users.edit', compact('user', 'companies', 'departments', 'roles', 'companySkills'));
     }
 
     /**
@@ -319,6 +351,14 @@ class UserController extends Controller
             $allowedRoles    = $this->getAvailableRoles($currentUser)->pluck('name')->toArray();
             $sanitizedRoles  = array_intersect($request->roles, $allowedRoles);
             $user->syncRoles($sanitizedRoles);
+        }
+
+        // Sync skills
+        if ($request->has('skills')) {
+            $user->skills()->sync($request->skills);
+        } else {
+            // If skills array not present, remove all skills
+            $user->skills()->detach();
         }
 
         return redirect()->route('users.show', $user)

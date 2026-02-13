@@ -326,6 +326,17 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the user's skills.
+     */
+    public function skills()
+    {
+        return $this->belongsToMany(CompanySkill::class, 'user_skills')
+                    ->withPivot('proficiency_level', 'acquired_date', 'notes')
+                    ->withTimestamps()
+                    ->orderBy('company_skills.name');
+    }
+
+    /**
      * Get total weekly hours from standard availability.
      * NEW
      */

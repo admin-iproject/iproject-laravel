@@ -1,4 +1,4 @@
-﻿<x-app-layout>
+<x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             View User
@@ -207,6 +207,22 @@
                     </div>
                     @endif
                     
+                    <!-- Skills Card -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Skills</h2>
+                        @if($user->skills->count() > 0)
+                            <div class="flex flex-wrap gap-2">
+                                @foreach($user->skills as $skill)
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                    {{ $skill->name }}
+                                </span>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-gray-500 text-sm">No skills assigned</p>
+                        @endif
+                    </div>
+                    
                     <!-- Roles & Permissions -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-lg font-semibold text-gray-900 mb-4">Roles</h2>
@@ -219,7 +235,7 @@
                                 @endforeach
                             </div>
                         @else
-                            <p class="text-gray-500">No roles assigned</p>
+                            <p class="text-gray-500 text-sm">No roles assigned</p>
                         @endif
                     </div>
                     

@@ -84,26 +84,69 @@
             </div>
 
             <!-- Search and Filters -->
-            <div class="bg-white rounded-lg shadow p-2 mb-4">
-                <form method="GET" action="<?php echo e(route('users.index')); ?>" class="flex gap-4">
+            <div class="bg-white rounded-lg shadow p-4 mb-4">
+                <form method="GET" action="<?php echo e(route('users.index')); ?>" class="space-y-4">
                     <input type="hidden" name="status" value="<?php echo e($status); ?>">
-                    <div class="flex-1">
-                        <input 
-                            type="text" 
-                            name="search" 
-                            value="<?php echo e(request('search')); ?>"
-                            placeholder="Search by name, email, or username..."
-                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                        >
+                    
+                    <!-- Search Bar -->
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <input 
+                                type="text" 
+                                name="search" 
+                                value="<?php echo e(request('search')); ?>"
+                                placeholder="Search by name, email, or username..."
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            >
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            Search
+                        </button>
+                        <?php if(request('search') || request('department_id') || request('skill_id')): ?>
+                        <a href="<?php echo e(route('users.index', ['status' => $status])); ?>" class="btn btn-secondary">
+                            Clear All
+                        </a>
+                        <?php endif; ?>
                     </div>
-                    <button type="submit" class="btn btn-primary">
-                        Search
-                    </button>
-                    <?php if(request('search')): ?>
-                    <a href="<?php echo e(route('users.index', ['status' => $status])); ?>" class="btn btn-secondary">
-                        Clear
-                    </a>
-                    <?php endif; ?>
+
+                    <!-- Filters Row -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Department Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                            <select 
+                                name="department_id" 
+                                onchange="this.form.submit()"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            >
+                                <option value="">All Departments</option>
+                                <?php $__currentLoopData = $departments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dept): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                    <option value="<?php echo e($dept->id); ?>" <?php echo e(request('department_id') == $dept->id ? 'selected' : ''); ?>>
+                                        <?php echo e($dept->name); ?>
+
+                                    </option>
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                            </select>
+                        </div>
+
+                        <!-- Skill Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Skill</label>
+                            <select 
+                                name="skill_id" 
+                                onchange="this.form.submit()"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            >
+                                <option value="">All Skills</option>
+                                <?php $__currentLoopData = $skills; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $skill): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                    <option value="<?php echo e($skill->id); ?>" <?php echo e(request('skill_id') == $skill->id ? 'selected' : ''); ?>>
+                                        <?php echo e($skill->name); ?>
+
+                                    </option>
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                            </select>
+                        </div>
+                    </div>
                 </form>
             </div>
 
@@ -125,7 +168,7 @@
                                 Department
                             </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Roles
+                                Skills
                             </th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Actions
@@ -184,17 +227,17 @@
                                 <?php endif; ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <?php if($user->roles->count() > 0): ?>
+                                <?php if($user->skills->count() > 0): ?>
                                 <div class="flex flex-wrap gap-1">
-                                    <?php $__currentLoopData = $user->roles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $role): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                        <?php echo e($role->name); ?>
+                                    <?php $__currentLoopData = $user->skills; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $skill): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                        <?php echo e($skill->name); ?>
 
                                     </span>
                                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </div>
                                 <?php else: ?>
-                                <span class="text-gray-400">—</span>
+                                <span class="text-gray-400 text-xs">No skills</span>
                                 <?php endif; ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

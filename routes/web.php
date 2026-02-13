@@ -3,6 +3,8 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\CompanySkillController;
+use App\Http\Controllers\UserSkillController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
@@ -50,6 +52,21 @@ Route::middleware('auth')->group(function () {
         Route::put('departments/{department}', [DepartmentController::class, 'update'])->name('departments.update');
         Route::delete('departments/{department}', [DepartmentController::class, 'destroy'])->name('departments.destroy');
     });
+    
+    // Company Skills (nested under companies)
+    Route::prefix('companies/{company}')->group(function () {
+        Route::get('skills', [CompanySkillController::class, 'index'])->name('companies.skills.index');
+        Route::post('skills', [CompanySkillController::class, 'store'])->name('companies.skills.store');
+        Route::post('skills/reorder', [CompanySkillController::class, 'reorder'])->name('companies.skills.reorder');
+    });
+    Route::put('company-skills/{skill}', [CompanySkillController::class, 'update'])->name('company-skills.update');
+    Route::delete('company-skills/{skill}', [CompanySkillController::class, 'destroy'])->name('company-skills.destroy');
+    
+    // User Skills
+    Route::get('users/{user}/skills', [UserSkillController::class, 'index'])->name('users.skills.index');
+    Route::post('users/{user}/skills', [UserSkillController::class, 'store'])->name('users.skills.store');
+    Route::put('users/{user}/skills/{skill}', [UserSkillController::class, 'update'])->name('users.skills.update');
+    Route::delete('users/{user}/skills/{skill}', [UserSkillController::class, 'destroy'])->name('users.skills.destroy');
     
     // Users Module
     Route::resource('users', UserController::class);

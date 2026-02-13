@@ -123,6 +123,14 @@ class Company extends Model
         return $this->hasMany(CompanyNews::class);
     }
 
+    /**
+     * Get the skills for the company.
+     */
+    public function skills()
+    {
+        return $this->hasMany(CompanySkill::class)->orderBy('sort_order')->orderBy('name');
+    }
+
     // ---------------------------------------------------------------
     // License helpers
     // ---------------------------------------------------------------

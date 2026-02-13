@@ -432,10 +432,10 @@
         </svg>
     </button>
     
-    <!-- Quick Add Tab -->
-    <button data-slideout="quickadd-slideout" class="slideout-tab" title="Quick Add">
+    <!-- Skills Tab -->
+    <button data-slideout="skills-slideout" class="slideout-tab" title="Company Skills">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
         </svg>
     </button>
 <?php $__env->stopSection(); ?>
@@ -562,10 +562,10 @@
         </div>
     </div>
 
-    <!-- Quick Add Slideout -->
-    <div id="quickadd-slideout" class="slideout-panel">
+    <!-- Skills Slideout -->
+    <div id="skills-slideout" class="slideout-panel">
         <div class="slideout-header">
-            <h3 class="slideout-title">Quick Add</h3>
+            <h3 class="slideout-title">Company Skills</h3>
             <button class="slideout-close-btn">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -573,36 +573,340 @@
             </button>
         </div>
         <div class="slideout-content">
-            <p class="text-gray-600 mb-4">Quickly create new items for <?php echo e($company->name); ?></p>
-            
-            <!-- Quick Add Options -->
-            <div class="grid grid-cols-2 gap-3">
-                <button class="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all">
-                    <svg class="w-8 h-8 mx-auto text-primary-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                    </svg>
-                    <div class="text-sm font-medium text-gray-900">Contact</div>
-                </button>
-                <button class="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all">
-                    <svg class="w-8 h-8 mx-auto text-primary-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                    </svg>
-                    <div class="text-sm font-medium text-gray-900">Department</div>
-                </button>
-                <button class="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all">
-                    <svg class="w-8 h-8 mx-auto text-primary-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                    </svg>
-                    <div class="text-sm font-medium text-gray-900">Project</div>
-                </button>
-                <button class="p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all">
-                    <svg class="w-8 h-8 mx-auto text-primary-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
-                    </svg>
-                    <div class="text-sm font-medium text-gray-900">Ticket</div>
-                </button>
+            <!-- Add Skill Form -->
+            <div class="mb-6 pb-6 border-b border-gray-200">
+                <form id="add-skill-form" class="space-y-4">
+                    <?php echo csrf_field(); ?>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Skill Name *</label>
+                        <input 
+                            type="text" 
+                            name="name" 
+                            required
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            placeholder="e.g., Java Developer 1, Project Manager"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+                        <textarea 
+                            name="description" 
+                            rows="2"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            placeholder="Brief description of this skill"
+                        ></textarea>
+                    </div>
+                    <button type="submit" class="w-full btn btn-primary">
+                        Add Skill
+                    </button>
+                </form>
+            </div>
+
+            <!-- Skills List -->
+            <div id="skills-list">
+                <p class="text-gray-500 text-center py-4">Loading skills...</p>
             </div>
         </div>
     </div>
+
+<script>
+// Departments Slideout JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    const companyId = <?php echo e($company->id); ?>;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    
+    const departmentsTab = document.querySelector('[data-slideout="departments-slideout"]');
+    
+    if (departmentsTab) {
+        departmentsTab.addEventListener('click', loadDepartments);
+    }
+    
+    function loadDepartments() {
+        fetch(`/companies/${companyId}/departments`)
+            .then(r => r.json())
+            .then(data => {
+                renderDepartments(data.departments);
+            })
+            .catch(err => {
+                console.error('Error loading departments:', err);
+            });
+    }
+    
+    function renderDepartments(departments) {
+        const container = document.querySelector('#departments-slideout .slideout-content');
+        
+        if (!departments || departments.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-gray-500 mb-4">No departments yet</p>
+                    <button onclick="showAddDepartmentForm()" class="btn btn-primary">
+                        Add First Department
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="mb-4">
+                <button onclick="showAddDepartmentForm()" class="w-full btn btn-primary mb-4">
+                    Add Department
+                </button>
+            </div>
+            
+            <div id="add-department-form-container" class="hidden mb-6 p-4 bg-gray-50 rounded-lg">
+                <form id="add-department-form" class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Department Name *</label>
+                        <input type="text" name="name" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" onclick="hideAddDepartmentForm()" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="space-y-3">
+                ${departments.map(dept => `
+                    <div class="p-4 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h4 class="font-medium text-gray-900">${dept.name}</h4>
+                                <div class="flex gap-4 mt-2 text-sm text-gray-600">
+                                    <span>${dept.users_count || 0} users</span>
+                                    <span>${dept.projects_count || 0} projects</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 ml-4">
+                                <button onclick="editDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'"')}')" class="text-blue-600 hover:text-blue-900" title="Edit">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                </button>
+                                <button onclick="deleteDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'"')}')" class="text-red-600 hover:text-red-900" title="Delete">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        const form = document.getElementById('add-department-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const name = this.name.value;
+                
+                fetch(`/companies/${companyId}/departments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify({ name })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        loadDepartments();
+                        alert('Department added successfully!');
+                    } else {
+                        alert(data.message || 'Error adding department');
+                    }
+                });
+            });
+        }
+    }
+    
+    window.showAddDepartmentForm = function() {
+        document.getElementById('add-department-form-container').classList.remove('hidden');
+    };
+    
+    window.hideAddDepartmentForm = function() {
+        document.getElementById('add-department-form-container').classList.add('hidden');
+        document.getElementById('add-department-form').reset();
+    };
+    
+    window.editDepartment = function(id, name) {
+        const newName = prompt('Edit department name:', name);
+        if (!newName || newName === name) return;
+        
+        fetch(`/companies/${companyId}/departments/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ name: newName })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                loadDepartments();
+                alert('Department updated!');
+            } else {
+                alert(data.message || 'Error updating department');
+            }
+        });
+    };
+    
+    window.deleteDepartment = function(id, name) {
+        if (!confirm(`Delete department "${name}"?\n\nUsers and projects in this department will need to be reassigned.`)) return;
+        
+        fetch(`/companies/${companyId}/departments/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                loadDepartments();
+                alert('Department deleted!');
+            } else {
+                alert(data.message || 'Cannot delete: ' + data.message);
+            }
+        });
+    };
+    
+    // Skills Slideout JavaScript
+    const skillsSlideout = document.getElementById('skills-slideout');
+    const skillsTab = document.querySelector('[data-slideout="skills-slideout"]');
+    
+    if (skillsTab) {
+        skillsTab.addEventListener('click', loadSkills);
+    }
+    
+    function loadSkills() {
+        fetch(`/companies/${companyId}/skills`)
+            .then(r => r.json())
+            .then(data => {
+                renderSkills(data.skills);
+            })
+            .catch(err => {
+                console.error('Error loading skills:', err);
+                document.getElementById('skills-list').innerHTML = 
+                    '<p class="text-red-500 text-center py-4">Error loading skills</p>';
+            });
+    }
+    
+    function renderSkills(skills) {
+        const container = document.getElementById('skills-list');
+        
+        if (!skills || skills.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center py-4">No skills yet. Add one above!</p>';
+            return;
+        }
+        
+        container.innerHTML = skills.map(skill => `
+            <div class="skill-item p-4 border border-gray-200 rounded-lg mb-3" data-skill-id="${skill.id}">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <h4 class="font-medium text-gray-900">${skill.name}</h4>
+                        ${skill.description ? `<p class="text-sm text-gray-600 mt-1">${skill.description}</p>` : ''}
+                        <p class="text-xs text-gray-500 mt-2">${skill.users_count || 0} users have this skill</p>
+                    </div>
+                    <div class="flex gap-2 ml-4">
+                        <button onclick="editSkill(${skill.id}, '${skill.name.replace(/'/g, "\\'")}', '${(skill.description || '').replace(/'/g, "\\'"')}')" 
+                                class="text-blue-600 hover:text-blue-900" title="Edit">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </button>
+                        <button onclick="deleteSkill(${skill.id}, '${skill.name.replace(/'/g, "\\'"')}')" 
+                                class="text-red-600 hover:text-red-900" title="Delete">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    document.getElementById('add-skill-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const data = {
+            name: formData.get('name'),
+            description: formData.get('description')
+        };
+        
+        fetch(`/companies/${companyId}/skills`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify(data)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                this.reset();
+                loadSkills();
+                alert('Skill added successfully!');
+            } else {
+                alert(data.message || 'Error adding skill');
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Error adding skill');
+        });
+    });
+    
+    window.editSkill = function(id, name, description) {
+        const newName = prompt('Edit skill name:', name);
+        if (!newName || newName === name) return;
+        
+        fetch(`/company-skills/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ name: newName, description: description })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                loadSkills();
+                alert('Skill updated!');
+            } else {
+                alert(data.message || 'Error updating skill');
+            }
+        });
+    };
+    
+    window.deleteSkill = function(id, name) {
+        if (!confirm(`Delete skill "${name}"?\n\nThis will remove it from all users who have it.`)) return;
+        
+        fetch(`/company-skills/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                loadSkills();
+                alert('Skill deleted!');
+            } else {
+                alert(data.message || 'Error deleting skill');
+            }
+        });
+    };
+});
+</script>
 <?php $__env->stopSection(); ?>
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/companies/show.blade.php ENDPATH**/ ?>

@@ -8,152 +8,110 @@ use Illuminate\Http\Request;
 
 class DepartmentController extends Controller
 {
+    /**
+     * Get departments for a company (AJAX for slideout).
+     */
     public function index(Company $company)
     {
-        // Check authorization
-        $this->authorize('viewAny', Department::class);
-
         $departments = $company->departments()
             ->with(['owner', 'parent'])
+            ->withCount(['users', 'projects'])
+            ->orderBy('name')
             ->get();
-        
+
         return response()->json([
             'departments' => $departments
         ]);
     }
 
     /**
-     * Get department options for dropdown (parent selector)
+     * Store a new department.
      */
-    public function options(Company $company)
-    {
-        // Check authorization
-        $this->authorize('viewAny', Department::class);
-
-        $departments = $company->departments()
-            ->select('id', 'name', 'parent_id')
-            ->orderBy('name')
-            ->get();
-        
-        return response()->json([
-            'departments' => $departments
-        ]);
-    }
-
     public function store(Request $request, Company $company)
     {
-        // Check authorization
-        $this->authorize('create', Department::class);
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|exists:departments,id',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:1000',
             'phone' => 'nullable|string|max:30',
             'fax' => 'nullable|string|max:30',
-            'url' => 'nullable|url|max:255',
-            'owner_id' => 'nullable|exists:users,id',
             'address_line1' => 'nullable|string|max:100',
             'address_line2' => 'nullable|string|max:100',
             'city' => 'nullable|string|max:50',
             'state' => 'nullable|string|max:50',
             'zip' => 'nullable|string|max:20',
             'country' => 'nullable|string|max:50',
-            'type' => 'nullable|integer',
+            'url' => 'nullable|url|max:255',
+            'owner_id' => 'nullable|exists:users,id',
         ]);
 
-        // Create department
-        $department = new Department($validated);
-        $department->company_id = $company->id;
-        
-        // Load relationships needed for inheritance
-        $department->setRelation('company', $company);
-        if ($validated['parent_id'] ?? null) {
-            $parent = Department::find($validated['parent_id']);
-            $department->setRelation('parent', $parent);
-        }
-        
-        // Apply inherited defaults for null fields
-        $department->applyInheritedDefaults();
-        
-        $department->save();
+        $validated['company_id'] = $company->id;
+
+        $department = Department::create($validated);
 
         return response()->json([
             'success' => true,
-            'department' => $department->load(['owner', 'parent']),
-            'message' => 'Department created successfully'
-        ]);
+            'message' => 'Department created successfully.',
+            'department' => $department->load(['owner', 'parent'])
+        ], 201);
     }
 
-    public function update(Request $request, Company $company, Department $department)
+    /**
+     * Update an existing department.
+     */
+    public function update(Request $request, Department $department)
     {
-        if ($department->company_id !== $company->id) {
-            return response()->json(['error' => 'Department not found'], 404);
-        }
-
-        // Check authorization
-        $this->authorize('update', $department);
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|exists:departments,id',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:1000',
             'phone' => 'nullable|string|max:30',
             'fax' => 'nullable|string|max:30',
-            'url' => 'nullable|url|max:255',
-            'owner_id' => 'nullable|exists:users,id',
             'address_line1' => 'nullable|string|max:100',
             'address_line2' => 'nullable|string|max:100',
             'city' => 'nullable|string|max:50',
             'state' => 'nullable|string|max:50',
             'zip' => 'nullable|string|max:20',
             'country' => 'nullable|string|max:50',
-            'type' => 'nullable|integer',
+            'url' => 'nullable|url|max:255',
+            'owner_id' => 'nullable|exists:users,id',
         ]);
 
         // Prevent circular parent relationship
         if (isset($validated['parent_id']) && $validated['parent_id'] == $department->id) {
             return response()->json([
-                'error' => 'A department cannot be its own parent'
+                'success' => false,
+                'message' => 'Department cannot be its own parent.'
             ], 422);
         }
 
-        // Update fields
-        $department->fill($validated);
-        
-        // Load relationships for inheritance
-        $department->load(['company', 'parent']);
-        
-        // Apply inherited defaults for any newly null fields
-        $department->applyInheritedDefaults();
-        
-        $department->save();
+        $department->update($validated);
 
         return response()->json([
             'success' => true,
-            'department' => $department->load(['owner', 'parent']),
-            'message' => 'Department updated successfully'
+            'message' => 'Department updated successfully.',
+            'department' => $department->fresh()->load(['owner', 'parent'])
         ]);
     }
 
-    public function destroy(Company $company, Department $department)
+    /**
+     * Delete a department.
+     */
+    public function destroy(Department $department)
     {
-        if ($department->company_id !== $company->id) {
-            return response()->json(['error' => 'Department not found'], 404);
-        }
-
-        // Check authorization
-        $this->authorize('delete', $department);
-
-        if ($department->children()->count() > 0) {
+        // Check if department has users
+        if ($department->users()->exists()) {
             return response()->json([
-                'error' => 'Cannot delete department with sub-departments'
+                'success' => false,
+                'message' => 'Cannot delete department with assigned users. Reassign users first.'
             ], 422);
         }
 
-        if ($department->users()->count() > 0) {
+        // Check if department has child departments
+        if ($department->children()->exists()) {
             return response()->json([
-                'error' => 'Cannot delete department with assigned users'
+                'success' => false,
+                'message' => 'Cannot delete department with child departments. Delete or reassign children first.'
             ], 422);
         }
 
@@ -161,7 +119,7 @@ class DepartmentController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Department deleted successfully'
+            'message' => 'Department deleted successfully.'
         ]);
     }
 }
