@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\Company;
+use App\Http\Requests\StoreDepartmentRequest;
+use App\Http\Requests\UpdateDepartmentRequest;
 use Illuminate\Http\Request;
 
 class DepartmentController extends Controller
@@ -13,6 +15,8 @@ class DepartmentController extends Controller
      */
     public function index(Company $company)
     {
+        ob_clean(); // Clear any output buffering that may contain BOM
+        
         $departments = $company->departments()
             ->with(['owner', 'parent'])
             ->withCount(['users', 'projects'])
@@ -27,24 +31,12 @@ class DepartmentController extends Controller
     /**
      * Store a new department.
      */
-    public function store(Request $request, Company $company)
+    public function store(StoreDepartmentRequest $request, Company $company)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'parent_id' => 'nullable|exists:departments,id',
-            'description' => 'nullable|string|max:1000',
-            'phone' => 'nullable|string|max:30',
-            'fax' => 'nullable|string|max:30',
-            'address_line1' => 'nullable|string|max:100',
-            'address_line2' => 'nullable|string|max:100',
-            'city' => 'nullable|string|max:50',
-            'state' => 'nullable|string|max:50',
-            'zip' => 'nullable|string|max:20',
-            'country' => 'nullable|string|max:50',
-            'url' => 'nullable|url|max:255',
-            'owner_id' => 'nullable|exists:users,id',
-        ]);
-
+        ob_clean(); // Clear any output buffering that may contain BOM
+        
+        $validated = $request->validated();
+        
         $validated['company_id'] = $company->id;
 
         $department = Department::create($validated);
@@ -59,23 +51,19 @@ class DepartmentController extends Controller
     /**
      * Update an existing department.
      */
-    public function update(Request $request, Department $department)
+    public function update(UpdateDepartmentRequest $request, Company $company, Department $department)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'parent_id' => 'nullable|exists:departments,id',
-            'description' => 'nullable|string|max:1000',
-            'phone' => 'nullable|string|max:30',
-            'fax' => 'nullable|string|max:30',
-            'address_line1' => 'nullable|string|max:100',
-            'address_line2' => 'nullable|string|max:100',
-            'city' => 'nullable|string|max:50',
-            'state' => 'nullable|string|max:50',
-            'zip' => 'nullable|string|max:20',
-            'country' => 'nullable|string|max:50',
-            'url' => 'nullable|url|max:255',
-            'owner_id' => 'nullable|exists:users,id',
-        ]);
+        ob_clean(); // Clear any output buffering that may contain BOM
+        
+        // Verify department belongs to company
+        if ($department->company_id !== $company->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Department not found in this company.'
+            ], 404);
+        }
+
+        $validated = $request->validated();
 
         // Prevent circular parent relationship
         if (isset($validated['parent_id']) && $validated['parent_id'] == $department->id) {
@@ -97,8 +85,18 @@ class DepartmentController extends Controller
     /**
      * Delete a department.
      */
-    public function destroy(Department $department)
+    public function destroy(Company $company, Department $department)
     {
+        ob_clean(); // Clear any output buffering that may contain BOM
+        
+        // Verify department belongs to company
+        if ($department->company_id !== $company->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Department not found in this company.'
+            ], 404);
+        }
+
         // Check if department has users
         if ($department->users()->exists()) {
             return response()->json([

@@ -449,28 +449,53 @@
                 </svg>
             </button>
         </div>
-        <div class="slideout-content">
-            <p class="text-gray-600 mb-4">{{ $company->name }} Departments</p>
+        <div class="slideout-content" style="display: flex; flex-direction: column; height: calc(100vh - 60px);">
+            <!-- ADD FORM - Always at top -->
+            <div style="flex-shrink: 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1rem;">
+                <h4 class="font-medium text-gray-900 mb-3">Add Department</h4>
+                <form id="add-department-form" onsubmit="saveDepartment(event)">
+                    <input 
+                        type="text" 
+                        id="dept-name" 
+                        placeholder="Department name *" 
+                        required
+                        class="w-full rounded-md border-gray-300 mb-2"
+                    >
+                    <button type="submit" class="w-full btn btn-primary">
+                        Create Department
+                    </button>
+                </form>
+            </div>
             
-            @can('create', App\Models\Department::class)
-            <button class="btn-primary w-full mb-4">
-                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Add Department
-            </button>
-            @endcan
-            
-            <!-- Department List -->
-            <div class="space-y-2">
-                @forelse($company->departments as $department)
-                <div class="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-all">
-                    <div class="font-medium text-gray-900">{{ $department->name }}</div>
-                    <div class="text-sm text-gray-500">{{ $department->users_count ?? 0 }} members</div>
+            <!-- EXISTING DEPARTMENTS LIST - Scrollable -->
+            <div style="flex: 1; overflow-y: auto;">
+                <h4 class="font-medium text-gray-700 mb-2">Existing Departments</h4>
+                <div id="departments-list" class="space-y-2">
+                    @forelse($company->departments as $department)
+                    <div class="p-3 bg-gray-50 rounded-lg" data-dept-id="{{ $department->id }}">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="font-medium text-gray-900">{{ $department->name }}</div>
+                                <div class="text-sm text-gray-500">{{ $department->users_count ?? 0 }} members</div>
+                            </div>
+                            <div class="flex gap-1 ml-2">
+                                <button onclick="editDepartment({{ $department->id }}, '{{ addslashes($department->name) }}')" class="text-blue-600 hover:text-blue-900 p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                </button>
+                                <button onclick="deleteDepartment({{ $department->id }}, '{{ addslashes($department->name) }}')" class="text-red-600 hover:text-red-900 p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    @empty
+                    <p class="text-sm text-gray-500 text-center py-4">No departments yet</p>
+                    @endforelse
                 </div>
-                @empty
-                <p class="text-sm text-gray-500 text-center py-4">No departments yet</p>
-                @endforelse
             </div>
         </div>
     </div>
@@ -568,340 +593,271 @@
                 </svg>
             </button>
         </div>
-        <div class="slideout-content">
-            <!-- Add Skill Form -->
-            <div class="mb-6 pb-6 border-b border-gray-200">
-                <form id="add-skill-form" class="space-y-4">
-                    @csrf
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Skill Name *</label>
-                        <input 
-                            type="text" 
-                            name="name" 
-                            required
-                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                            placeholder="e.g., Java Developer 1, Project Manager"
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
-                        <textarea 
-                            name="description" 
-                            rows="2"
-                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                            placeholder="Brief description of this skill"
-                        ></textarea>
-                    </div>
+        <div class="slideout-content" style="display: flex; flex-direction: column; height: calc(100vh - 60px);">
+            <!-- ADD FORM - Always at top -->
+            <div style="flex-shrink: 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1rem;">
+                <h4 class="font-medium text-gray-900 mb-3">Add Skill</h4>
+                <form id="add-skill-form" onsubmit="saveSkill(event)">
+                    <input 
+                        type="text" 
+                        id="skill-name" 
+                        placeholder="Skill name (e.g., Java Developer 1) *" 
+                        required
+                        class="w-full rounded-md border-gray-300 mb-2"
+                    >
+                    <textarea 
+                        id="skill-description" 
+                        placeholder="Brief description (optional)" 
+                        rows="2"
+                        class="w-full rounded-md border-gray-300 mb-2"
+                    ></textarea>
                     <button type="submit" class="w-full btn btn-primary">
-                        Add Skill
+                        Create Skill
                     </button>
                 </form>
             </div>
-
-            <!-- Skills List -->
-            <div id="skills-list">
-                <p class="text-gray-500 text-center py-4">Loading skills...</p>
-            </div>
-        </div>
-    </div>
-
-<script>
-// Departments Slideout JavaScript
-document.addEventListener('DOMContentLoaded', function() {
-    const companyId = {{ $company->id }};
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-    
-    const departmentsTab = document.querySelector('[data-slideout="departments-slideout"]');
-    
-    if (departmentsTab) {
-        departmentsTab.addEventListener('click', loadDepartments);
-    }
-    
-    function loadDepartments() {
-        fetch(`/companies/${companyId}/departments`)
-            .then(r => r.json())
-            .then(data => {
-                renderDepartments(data.departments);
-            })
-            .catch(err => {
-                console.error('Error loading departments:', err);
-            });
-    }
-    
-    function renderDepartments(departments) {
-        const container = document.querySelector('#departments-slideout .slideout-content');
-        
-        if (!departments || departments.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-8">
-                    <p class="text-gray-500 mb-4">No departments yet</p>
-                    <button onclick="showAddDepartmentForm()" class="btn btn-primary">
-                        Add First Department
-                    </button>
-                </div>
-            `;
-            return;
-        }
-        
-        container.innerHTML = `
-            <div class="mb-4">
-                <button onclick="showAddDepartmentForm()" class="w-full btn btn-primary mb-4">
-                    Add Department
-                </button>
-            </div>
             
-            <div id="add-department-form-container" class="hidden mb-6 p-4 bg-gray-50 rounded-lg">
-                <form id="add-department-form" class="space-y-3">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Department Name *</label>
-                        <input type="text" name="name" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
-                    </div>
-                    <div class="flex gap-2">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <button type="button" onclick="hideAddDepartmentForm()" class="btn btn-secondary">Cancel</button>
-                    </div>
-                </form>
-            </div>
-            
-            <div class="space-y-3">
-                ${departments.map(dept => `
-                    <div class="p-4 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors">
-                        <div class="flex items-start justify-between">
+            <!-- EXISTING SKILLS LIST - Scrollable -->
+            <div style="flex: 1; overflow-y: auto;">
+                <h4 class="font-medium text-gray-700 mb-2">Existing Skills</h4>
+                <div id="skills-list" class="space-y-2">
+                    @forelse($company->skills ?? [] as $skill)
+                    <div class="p-3 bg-gray-50 rounded-lg" data-skill-id="{{ $skill->id }}">
+                        <div class="flex justify-between items-start">
                             <div class="flex-1">
-                                <h4 class="font-medium text-gray-900">${dept.name}</h4>
-                                <div class="flex gap-4 mt-2 text-sm text-gray-600">
-                                    <span>${dept.users_count || 0} users</span>
-                                    <span>${dept.projects_count || 0} projects</span>
-                                </div>
+                                <div class="font-medium text-gray-900">{{ $skill->name }}</div>
+                                @if($skill->description)
+                                <div class="text-sm text-gray-600 mt-1">{{ $skill->description }}</div>
+                                @endif
+                                <div class="text-sm text-gray-500 mt-1">{{ $skill->users_count ?? 0 }} users</div>
                             </div>
-                            <div class="flex gap-2 ml-4">
-                                <button onclick="editDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'"')}')" class="text-blue-600 hover:text-blue-900" title="Edit">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="flex gap-1 ml-2">
+                                <button onclick="editSkill({{ $skill->id }}, '{{ addslashes($skill->name) }}', '{{ addslashes($skill->description ?? '') }}')" class="text-blue-600 hover:text-blue-900 p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                     </svg>
                                 </button>
-                                <button onclick="deleteDepartment(${dept.id}, '${dept.name.replace(/'/g, "\\'"')}')" class="text-red-600 hover:text-red-900" title="Delete">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <button onclick="deleteSkill({{ $skill->id }}, '{{ addslashes($skill->name) }}')" class="text-red-600 hover:text-red-900 p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                     </svg>
                                 </button>
                             </div>
                         </div>
                     </div>
-                `).join('')}
-            </div>
-        `;
-        
-        const form = document.getElementById('add-department-form');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const name = this.name.value;
-                
-                fetch(`/companies/${companyId}/departments`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken
-                    },
-                    body: JSON.stringify({ name })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        loadDepartments();
-                        alert('Department added successfully!');
-                    } else {
-                        alert(data.message || 'Error adding department');
-                    }
-                });
-            });
-        }
-    }
-    
-    window.showAddDepartmentForm = function() {
-        document.getElementById('add-department-form-container').classList.remove('hidden');
-    };
-    
-    window.hideAddDepartmentForm = function() {
-        document.getElementById('add-department-form-container').classList.add('hidden');
-        document.getElementById('add-department-form').reset();
-    };
-    
-    window.editDepartment = function(id, name) {
-        const newName = prompt('Edit department name:', name);
-        if (!newName || newName === name) return;
-        
-        fetch(`/companies/${companyId}/departments/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
-            },
-            body: JSON.stringify({ name: newName })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                loadDepartments();
-                alert('Department updated!');
-            } else {
-                alert(data.message || 'Error updating department');
-            }
-        });
-    };
-    
-    window.deleteDepartment = function(id, name) {
-        if (!confirm(`Delete department "${name}"?\n\nUsers and projects in this department will need to be reassigned.`)) return;
-        
-        fetch(`/companies/${companyId}/departments/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken
-            }
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                loadDepartments();
-                alert('Department deleted!');
-            } else {
-                alert(data.message || 'Cannot delete: ' + data.message);
-            }
-        });
-    };
-    
-    // Skills Slideout JavaScript
-    const skillsSlideout = document.getElementById('skills-slideout');
-    const skillsTab = document.querySelector('[data-slideout="skills-slideout"]');
-    
-    if (skillsTab) {
-        skillsTab.addEventListener('click', loadSkills);
-    }
-    
-    function loadSkills() {
-        fetch(`/companies/${companyId}/skills`)
-            .then(r => r.json())
-            .then(data => {
-                renderSkills(data.skills);
-            })
-            .catch(err => {
-                console.error('Error loading skills:', err);
-                document.getElementById('skills-list').innerHTML = 
-                    '<p class="text-red-500 text-center py-4">Error loading skills</p>';
-            });
-    }
-    
-    function renderSkills(skills) {
-        const container = document.getElementById('skills-list');
-        
-        if (!skills || skills.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center py-4">No skills yet. Add one above!</p>';
-            return;
-        }
-        
-        container.innerHTML = skills.map(skill => `
-            <div class="skill-item p-4 border border-gray-200 rounded-lg mb-3" data-skill-id="${skill.id}">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <h4 class="font-medium text-gray-900">${skill.name}</h4>
-                        ${skill.description ? `<p class="text-sm text-gray-600 mt-1">${skill.description}</p>` : ''}
-                        <p class="text-xs text-gray-500 mt-2">${skill.users_count || 0} users have this skill</p>
-                    </div>
-                    <div class="flex gap-2 ml-4">
-                        <button onclick="editSkill(${skill.id}, '${skill.name.replace(/'/g, "\\'")}', '${(skill.description || '').replace(/'/g, "\\'"')}')" 
-                                class="text-blue-600 hover:text-blue-900" title="Edit">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                            </svg>
-                        </button>
-                        <button onclick="deleteSkill(${skill.id}, '${skill.name.replace(/'/g, "\\'"')}')" 
-                                class="text-red-600 hover:text-red-900" title="Delete">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                        </button>
-                    </div>
+                    @empty
+                    <p class="text-sm text-gray-500 text-center py-4">No skills yet</p>
+                    @endforelse
                 </div>
             </div>
-        `).join('');
-    }
+        </div>
+    </div>
+
+<script>
+const companyId = {{ $company->id }};
+const csrf = '{{ csrf_token() }}';
+
+// DEPARTMENTS
+function saveDepartment(e) {
+    e.preventDefault();
+    const name = document.getElementById('dept-name').value;
     
-    document.getElementById('add-skill-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        const data = {
-            name: formData.get('name'),
-            description: formData.get('description')
-        };
-        
-        fetch(`/companies/${companyId}/skills`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
-            },
-            body: JSON.stringify(data)
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                this.reset();
-                loadSkills();
-                alert('Skill added successfully!');
-            } else {
-                alert(data.message || 'Error adding skill');
-            }
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            alert('Error adding skill');
-        });
+    fetch(`/companies/${companyId}/departments`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrf
+        },
+        body: JSON.stringify({ name })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('dept-name').value = '';
+            reloadDepartments();
+        } else {
+            alert(data.message || 'Error adding department');
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+function editDepartment(id, name) {
+    const newName = prompt('Edit department name:', name);
+    if (!newName || newName === name) return;
+    
+    fetch(`/companies/${companyId}/departments/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrf
+        },
+        body: JSON.stringify({ name: newName })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            reloadDepartments();
+        } else {
+            alert(data.message || 'Error updating department');
+        }
     });
+}
+
+function deleteDepartment(id, name) {
+    if (!confirm(`Delete department "${name}"?`)) return;
     
-    window.editSkill = function(id, name, description) {
-        const newName = prompt('Edit skill name:', name);
-        if (!newName || newName === name) return;
-        
-        fetch(`/company-skills/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
-            },
-            body: JSON.stringify({ name: newName, description: description })
-        })
+    fetch(`/companies/${companyId}/departments/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': csrf
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            reloadDepartments();
+        } else {
+            alert(data.message || 'Error: ' + data.message);
+        }
+    });
+}
+
+function reloadDepartments() {
+    fetch(`/companies/${companyId}/departments`)
         .then(r => r.json())
         .then(data => {
-            if (data.success) {
-                loadSkills();
-                alert('Skill updated!');
-            } else {
-                alert(data.message || 'Error updating skill');
+            const list = document.getElementById('departments-list');
+            if (!data.departments || data.departments.length === 0) {
+                list.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No departments yet</p>';
+                return;
             }
+            list.innerHTML = data.departments.map(d => `
+                <div class="p-3 bg-gray-50 rounded-lg" data-dept-id="${d.id}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-900">${d.name}</div>
+                            <div class="text-sm text-gray-500">${d.users_count || 0} members</div>
+                        </div>
+                        <div class="flex gap-1 ml-2">
+                            <button onclick="editDepartment(${d.id}, '${d.name.replace(/'/g, "\\'")}')" class="text-blue-600 hover:text-blue-900 p-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </button>
+                            <button onclick="deleteDepartment(${d.id}, '${d.name.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-900 p-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         });
-    };
+}
+
+// SKILLS
+function saveSkill(e) {
+    e.preventDefault();
+    const name = document.getElementById('skill-name').value;
+    const description = document.getElementById('skill-description').value;
     
-    window.deleteSkill = function(id, name) {
-        if (!confirm(`Delete skill "${name}"?\n\nThis will remove it from all users who have it.`)) return;
-        
-        fetch(`/company-skills/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken
-            }
-        })
+    fetch(`/companies/${companyId}/skills`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrf
+        },
+        body: JSON.stringify({ name, description })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('skill-name').value = '';
+            document.getElementById('skill-description').value = '';
+            reloadSkills();
+        } else {
+            alert(data.message || 'Error adding skill');
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+function editSkill(id, name, description) {
+    const newName = prompt('Edit skill name:', name);
+    if (!newName || newName === name) return;
+    
+    fetch(`/company-skills/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrf
+        },
+        body: JSON.stringify({ name: newName, description })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            reloadSkills();
+        } else {
+            alert(data.message || 'Error updating skill');
+        }
+    });
+}
+
+function deleteSkill(id, name) {
+    if (!confirm(`Delete skill "${name}"?`)) return;
+    
+    fetch(`/company-skills/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': csrf
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            reloadSkills();
+        } else {
+            alert(data.message || 'Error: ' + data.message);
+        }
+    });
+}
+
+function reloadSkills() {
+    fetch(`/companies/${companyId}/skills`)
         .then(r => r.json())
         .then(data => {
-            if (data.success) {
-                loadSkills();
-                alert('Skill deleted!');
-            } else {
-                alert(data.message || 'Error deleting skill');
+            const list = document.getElementById('skills-list');
+            if (!data.skills || data.skills.length === 0) {
+                list.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No skills yet</p>';
+                return;
             }
+            list.innerHTML = data.skills.map(s => `
+                <div class="p-3 bg-gray-50 rounded-lg" data-skill-id="${s.id}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-900">${s.name}</div>
+                            ${s.description ? `<div class="text-sm text-gray-600 mt-1">${s.description}</div>` : ''}
+                            <div class="text-sm text-gray-500 mt-1">${s.users_count || 0} users</div>
+                        </div>
+                        <div class="flex gap-1 ml-2">
+                            <button onclick="editSkill(${s.id}, '${s.name.replace(/'/g, "\\'")}', '${(s.description || '').replace(/'/g, "\\\'")}')" class="text-blue-600 hover:text-blue-900 p-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </button>
+                            <button onclick="deleteSkill(${s.id}, '${s.name.replace(/'/g, "\\\'")}')" class="text-red-600 hover:text-red-900 p-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         });
-    };
-});
+}
 </script>
 @endsection

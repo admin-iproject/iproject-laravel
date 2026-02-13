@@ -131,7 +131,12 @@ class CompanyController extends Controller
         $company->load([
             'owner',
             'lastEditor',
-            'departments',
+            'departments' => function($query) {
+                $query->withCount('users');
+            },
+            'skills' => function($query) {
+                $query->withCount('users');
+            },
             'users',
             'projects',
             'contacts',
