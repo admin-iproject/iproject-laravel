@@ -179,6 +179,7 @@
                                     type="password" 
                                     name="password" 
                                     id="password"
+									autocomplete="new-password"
                                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                 >
                             </div>
@@ -192,6 +193,7 @@
                                     type="password" 
                                     name="password_confirmation" 
                                     id="password_confirmation"
+									autocomplete="new-password"
                                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                 >
                             </div>
@@ -403,24 +405,56 @@
                     </div>
 
                     <!-- Roles -->
+<div class="mb-6 border-t pt-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Roles</h3>
+    
+    <div class="grid grid-cols-3 gap-2">
+        @foreach($roles as $role)
+            <label class="flex items-center">
+                <input 
+                    type="checkbox" 
+                    name="roles[]" 
+                    value="{{ $role->name }}"
+                    {{ $user->roles->contains('name', $role->name) ? 'checked' : '' }}
+                    class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                >
+                <span class="ml-2 text-sm text-gray-700">{{ ucfirst($role->name) }}</span>
+            </label>
+        @endforeach
+    </div>
+</div>
+
+
+					                    <!-- Skills -->
+                                        <!-- Skills -->
                     <div class="mb-6 border-t pt-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Roles</h3>
-                        
-                        <div class="space-y-2">
-                            @foreach($roles as $role)
-                            <label class="flex items-center">
-                                <input 
-                                    type="checkbox" 
-                                    name="roles[]" 
-                                    value="{{ $role->name }}"
-                                    {{ $user->roles->contains('name', $role->name) ? 'checked' : '' }}
-                                    class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                                >
-                                <span class="ml-2 text-sm text-gray-700">{{ ucfirst($role->name) }}</span>
-                            </label>
-                            @endforeach
-                        </div>
-                    </div>
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Skills</h3>
+    
+    @if($companySkills->count() > 0)
+        <div class="grid grid-cols-3 gap-2">
+            @foreach($companySkills as $skill)
+                <label class="flex items-center">
+                    <input 
+                        type="checkbox" 
+                        name="skills[]" 
+                        value="{{ $skill->id }}"
+                        {{ $user->skills->contains('id', $skill->id) ? 'checked' : '' }}
+                        class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    >
+                    <span class="ml-2 text-sm text-gray-700">{{ $skill->name }}</span>
+                </label>
+            @endforeach
+        </div>
+    @else
+        <p class="text-sm text-gray-500">
+            No skills available.
+            <a href="{{ route('companies.show', $user->company) }}" class="text-primary-600 hover:text-primary-900">
+                Add skills to your company
+            </a>
+            first.
+        </p>
+    @endif
+</div>
 
                     <!-- Buttons -->
                     <div class="flex justify-end gap-2 border-t pt-6">

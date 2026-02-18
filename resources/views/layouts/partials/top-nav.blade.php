@@ -4,12 +4,12 @@
     <!-- Logo Folder Tab (grey with curved corner) -->
     <div class="logo-folder-tab">
     <a href="{{ route('dashboard') }}" class="flex items-center h-full">
-        <img src="/storage/iPROJECTlogo.png" alt="iPROJECT - The Fine Art of Project Management" class="h-10">
+        <img src="/storage/SYSMYC_TRANS_CROP.png" alt="SYSMYC - Monitoring The Activity of Your Enterprise" width = 140px>
     </a>
 	</div>
     
-    <!-- Blue Navigation Bar -->
-    <div class="top-nav-blue">
+    <!-- Brown Navigation Bar -->
+    <div class="top-nav-brown">
         
         <div class="flex items-center space-x-1" style="margin-left: 270px;">
             
@@ -128,8 +128,8 @@
                 <!-- Search Bar -->
                 <div class="relative">
                     <input type="text" 
-                           placeholder="SMART SEARCH" 
-                           class="w-60 bg-white border-1 border-white text-gray-900 placeholder-gray-400 rounded px-4 py-1 transition-all">
+                           placeholder="Smart Search..." 
+                           class="w-60 bg-white border-white text-gray-900 placeholder-gray-400 rounded px-2 py-0.5 transition-all">
                 </div>
                 
                 <!-- Quick Add -->
