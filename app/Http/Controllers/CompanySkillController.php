@@ -18,6 +18,7 @@ class CompanySkillController extends Controller
         ob_clean(); // Clear any output buffering that may contain BOM
         
         $skills = $company->skills()
+            ->with('users:id,first_name,last_name')
             ->withCount('users')
             ->orderBy('sort_order')
             ->orderBy('name')

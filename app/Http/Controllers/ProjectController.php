@@ -145,13 +145,21 @@ class ProjectController extends Controller
             'creator',
             'lastEditedBy',
             'tasks' => function ($query) {
-                // Load ALL tasks with children recursively
-                $query->with(['children' => function($q) {
-                        $q->with('children.children.children.children'); // Support 5 levels deep
-                    }])
-                    ->select('id', 'project_id', 'name', 'parent_id', 'status', 'priority', 
-                            'percent_complete', 'start_date', 'end_date', 'level', 
-                            'target_budget', 'task_ignore_budget', 'owner_id')
+                // Load ALL tasks with owner and checklist counts
+                $query->with([
+                        'owner:id,first_name,last_name',
+                        'checklist',
+                    ])
+                    ->select(
+                        'id', 'project_id', 'name', 'description', 'parent_id',
+                        'status', 'priority', 'percent_complete',
+                        'start_date', 'end_date', 'duration', 'duration_type',
+                        'level', 'task_order', 'milestone', 'access',
+                        'target_budget', 'actual_budget', 'hours_worked',
+                        'task_ignore_budget', 'phase', 'task_phase',
+                        'cost_code', 'risk', 'owner_id', 'task_assigned',
+                        'last_edited', 'created_at', 'updated_at'
+                    )
                     ->orderBy('task_order', 'asc')
                     ->orderBy('id', 'asc');
             },

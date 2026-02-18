@@ -3,10 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>iProject</title>
+    <title>SYSMYC - Managing Enterprise Activity</title>
 </head>
 <body>
-    <h1>Welcome to iProject</h1>
+    <h1>Welcome to SYSMYC</h1>
     @if (Route::has('login'))
         @auth
             <a href="{{ url('/dashboard') }}">Dashboard</a>

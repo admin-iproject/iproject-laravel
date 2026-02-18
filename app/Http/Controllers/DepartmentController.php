@@ -18,7 +18,7 @@ class DepartmentController extends Controller
         ob_clean(); // Clear any output buffering that may contain BOM
         
         $departments = $company->departments()
-            ->with(['owner', 'parent'])
+            ->with(['owner', 'parent', 'users:id,department_id,first_name,last_name'])
             ->withCount(['users', 'projects'])
             ->orderBy('name')
             ->get();

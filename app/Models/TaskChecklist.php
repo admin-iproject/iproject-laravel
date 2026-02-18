@@ -16,25 +16,33 @@ class TaskChecklist extends Model
     protected $table = 'task_checklist';
 
     /**
+     * The primary key for the model.
+     * DB uses checklist_id, not id.
+     */
+    protected $primaryKey = 'checklist_id';
+
+    /**
      * The attributes that are mass assignable.
      */
     protected $fillable = [
         'task_id',
-        'item_name',
-        'is_completed',
-        'sort_order',
-        'completed_by',
-        'completed_at',
+        'checklist',   // The checklist item text
+        'checkedby',   // FK to users — null means not completed
+        'checkeddate', // Datetime when checked
+        'order',       // Sort order
     ];
 
     /**
      * The attributes that should be cast.
      */
     protected $casts = [
-        'is_completed' => 'boolean',
-        'sort_order' => 'integer',
-        'completed_at' => 'datetime',
+        'checkeddate' => 'datetime',
+        'order'       => 'integer',
     ];
+
+    /**
+     * Relationships
+     */
 
     /**
      * Get the task this checklist item belongs to
@@ -45,36 +53,57 @@ class TaskChecklist extends Model
     }
 
     /**
-     * Get the user who completed this item
+     * Get the user who checked this item
      */
-    public function completedBy(): BelongsTo
+    public function checkedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'completed_by');
+        return $this->belongsTo(User::class, 'checkedby');
     }
 
     /**
-     * Scope to only get completed items
+     * Accessors
+     */
+
+    /**
+     * Is this item completed?
+     * Completion = checkedby is not null
+     */
+    public function getIsCompletedAttribute(): bool
+    {
+        return !is_null($this->checkedby);
+    }
+
+    /**
+     * Scopes
+     */
+
+    /**
+     * Only completed items (checkedby is set)
      */
     public function scopeCompleted($query)
     {
-        return $query->where('is_completed', true);
+        return $query->whereNotNull('checkedby');
     }
 
     /**
-     * Scope to only get incomplete items
+     * Only incomplete items (checkedby is null)
      */
     public function scopeIncomplete($query)
     {
-        return $query->where('is_completed', false);
+        return $query->whereNull('checkedby');
     }
 
     /**
-     * Scope to order by sort_order
+     * Order by sort order
      */
     public function scopeOrdered($query)
     {
-        return $query->orderBy('sort_order');
+        return $query->orderBy('order');
     }
+
+    /**
+     * Actions
+     */
 
     /**
      * Mark item as complete
@@ -82,9 +111,8 @@ class TaskChecklist extends Model
     public function markComplete(int $userId): void
     {
         $this->update([
-            'is_completed' => true,
-            'completed_by' => $userId,
-            'completed_at' => now(),
+            'checkedby'   => $userId,
+            'checkeddate' => now(),
         ]);
     }
 
@@ -94,9 +122,8 @@ class TaskChecklist extends Model
     public function markIncomplete(): void
     {
         $this->update([
-            'is_completed' => false,
-            'completed_by' => null,
-            'completed_at' => null,
+            'checkedby'   => null,
+            'checkeddate' => null,
         ]);
     }
 }

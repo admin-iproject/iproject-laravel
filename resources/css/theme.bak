@@ -1,0 +1,542 @@
+/* ========================================
+   iProject Theme Styles
+   Single source of truth for all styling
+   ======================================== */
+
+/* ==================== ROOT VARIABLES ==================== */
+:root {
+    /* Sidebar Dimensions */
+    --sidebar-width: 320px;
+    --sidebar-collapsed-width: 56px;
+    --slideout-width: 450px;
+    --topnav-height: 56px;
+    
+    /* Transitions */
+    --transition-speed: 300ms;
+    --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Z-Index Layers */
+    --z-topnav: 50;
+    --z-slideout: 45;
+    --z-sidebar: 40;
+    --z-modal: 60;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+	--shadow-topmd: 0 -4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    
+    /* Colors */
+    --color-sidebar-bg: #FAF9F5;
+    --color-sidebar-hover: #9d8854;
+    --color-sidebar-active: #9d8854;
+    --color-sidebar-text: #374151;
+    --color-sidebar-text-active: #ffffff;
+    --color-primary-500: #9d8854;
+    --color-primary-600: #cab287;
+    --color-gray-50: #F9FAFB;
+    --color-gray-100: #F3F4F6;
+    --color-gray-200: #FAF9F5;
+    --color-gray-300: #D1D5DB;
+    --color-gray-400: #9CA3AF;
+    --color-gray-500: #6B7280;
+    --color-gray-600: #4B5563;
+    --color-gray-700: #374151;
+    --color-gray-900: #111827;
+}
+
+/* ==================== TOP NAVIGATION WITH FOLDER TAB ==================== */
+.top-nav-wrapper {
+    height: 56px;
+}
+
+.logo-folder-tab {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 48px;
+    width: 260px;
+    z-index: 52;
+    display: flex;
+    align-items: center;
+    padding-left: 45px;
+    padding-top: 20px;
+    background-image: url('/public/images/folder-tab.svg');
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+.top-nav-brown {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: #9d8854; /*linear-gradient(135deg, #CC0000 0%, #7a0000 100%);*/
+    z-index: 51;
+}
+
+.top-nav-grey-strip {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background-color: #FAF9F5;
+    z-index: 51;
+		box-shadow: -4px -4px 4px 2px #654321;
+}
+
+
+.top-nav-menu-item {
+    color: 654321;
+	background-color: #FAF9F5;
+	height: 40px;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    transition: background-color var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+	position: relative;
+	
+	top: 5px;
+
+}
+
+.top-nav-menu-item:hover {
+    background-color: white;
+	color: black;
+	position: relative;
+	top: 10px;
+	box-shadow: -4px -4px 4px 2px #654321;
+
+}
+
+.top-nav-menu-item:active {
+    background-color: #FAF9F5;
+	color: black;
+	position: relative;
+	top: 10px;
+	
+}
+
+.top-nav-icon-btn {
+    color: white;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    transition: background-color var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+}
+
+.top-nav-icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ==================== LEFT SIDEBAR ==================== */
+.left-sidebar {
+    position: fixed;
+    left: 0 !important;
+    top: var(--topnav-height);
+    bottom: 0;
+    width: var(--sidebar-width);
+    background-color: var(--color-sidebar-bg);
+
+    transition: width var(--transition-speed) var(--transition-easing);
+    z-index: var(--z-sidebar);
+    box-shadow: var(--shadow-md);
+    overflow-y: auto;
+}
+
+.left-sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+    left: 0 !important;
+}
+
+.sidebar-section-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 1rem;
+    transition: opacity var(--transition-speed) var(--transition-easing);
+}
+
+.left-sidebar.collapsed .sidebar-section-title {
+    opacity: 0;
+    display: none;
+}
+
+.sidebar-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    color: var(--color-sidebar-text);
+    transition: all var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-menu-item:hover {
+    background-color: var(--color-sidebar-hover);
+}
+
+.sidebar-menu-item.active {
+    background-color: var(--color-sidebar-active);
+    color: var(--color-sidebar-text-active);
+    border-left-color: var(--color-primary-500);
+    font-weight: 500;
+}
+
+.sidebar-menu-item-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    margin-right: 0.75rem;
+    transition: margin var(--transition-speed) var(--transition-easing);
+}
+
+.left-sidebar.collapsed .sidebar-menu-item-icon {
+    margin-right: 0;
+}
+
+.sidebar-menu-item-text {
+    transition: opacity var(--transition-speed) var(--transition-easing);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.left-sidebar.collapsed .sidebar-menu-item-text {
+    opacity: 0;
+    width: 0;
+}
+
+.sidebar-expandable-menu {
+    overflow: hidden;
+    transition: max-height var(--transition-speed) var(--transition-easing);
+}
+
+.sidebar-expandable-item {
+    padding: 0.375rem 1rem 0.375rem 3rem;
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+    transition: all var(--transition-speed) var(--transition-easing);
+}
+
+.sidebar-expandable-item:hover {
+    background-color: var(--color-sidebar-hover);
+    color: var(--color-sidebar-text-active);
+}
+
+/* ==================== RIGHT SLIDEOUTS ==================== */
+.slideout-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: calc(var(--z-slideout) - 1);
+    transition: opacity var(--transition-speed) var(--transition-easing);
+}
+
+.slideout-panel {
+    position: fixed;
+    top: var(--topnav-height);
+    right: 0;
+    bottom: 0;
+    width: var(--slideout-width);
+    background-color: white;
+    box-shadow: var(--shadow-lg);
+    z-index: var(--z-slideout);
+    transform: translateX(100%);
+    transition: transform var(--transition-speed) var(--transition-easing);
+    overflow-y: auto;
+}
+
+.slideout-panel.open {
+    transform: translateX(0);
+}
+
+.slideout-header {
+    padding: 0.5rem 0.5rem;
+    border-bottom: 1px solid var(--color-primary-500);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--color-primary-500);
+}
+
+.slideout-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: white;
+}
+
+.slideout-close-btn {
+    padding: 0.5rem;
+    color: white;
+    border-radius: 0.375rem;
+    transition: all var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+}
+
+.slideout-close-btn:hover {
+    background-color: var(--color-gray-200);
+    color: var(--color-gray-700);
+}
+
+.slideout-content {
+    padding: 1.5rem;
+}
+
+/* ==================== RIGHT EDGE SLIDEOUT TABS ==================== */
+.slideout-tab {
+    width: 40px;
+    height: 40px;
+    background-color: var(--color-primary-500);
+    color: white;
+    border-top-left-radius: 0.5rem;
+    border-bottom-left-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-lg);
+    transition: all var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+    border: none;
+    padding: 0;
+}
+
+.slideout-tab:hover {
+    background-color: var(--color-primary-600);
+    padding-right: 6px;
+}
+
+.slideout-tab:active {
+    transform: scale(0.95);
+}
+
+.slideout-tab svg {
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
+/* ==================== MAIN CONTENT AREA ==================== */
+.main-content {
+    margin-left: var(--sidebar-collapsed-width);
+    margin-top: 20px;
+    transition: margin-left var(--transition-speed) var(--transition-easing);
+    min-height: calc(100vh - var(--topnav-height));
+    background-color: var(--color-gray-200);
+}
+
+body:not(:has(.left-sidebar.collapsed)) .main-content,
+.left-sidebar:not(.collapsed) ~ .main-content {
+    margin-left: var(--sidebar-width);
+}
+
+/* Add right padding when right tabs are present */
+body:has(.slideout-tab) .main-content {
+    padding-right: 60px;
+}
+
+/* ==================== WIDGETS & CARDS ==================== */
+.widget-card {
+    background-color: white;
+    border-radius: 0.5rem;
+	border-top: 2px solid;
+    border-top-color: var(--color-gray-300);
+	border-left: 2px solid;
+    border-left-color: var(--color-gray-300);
+    box-shadow: var(--shadow-md);
+    transition: box-shadow var(--transition-speed) var(--transition-easing);
+}
+
+.widget-card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.widget-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--color-gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.widget-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+}
+
+.widget-menu-btn {
+    padding: 0.25rem;
+    color: var(--color-gray-500);
+    border-radius: 0.25rem;
+    transition: all var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+}
+
+.widget-menu-btn:hover {
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-700);
+}
+
+.widget-content {
+    padding: 1.5rem;
+}
+
+/* ==================== BUTTONS ==================== */
+.btn-primary {
+    background-color: var(--color-primary-500);
+	height: 32px;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: background-color var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-primary:hover {
+    background-color: var(--color-primary-600);
+	color: black;
+}
+
+.btn-secondary {
+    background-color: white;
+    color: var(--color-gray-700);
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    border: 1px solid var(--color-gray-300);
+    transition: all var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-secondary:hover {
+    background-color: var(--color-gray-50);
+    border-color: var(--color-gray-400);
+}
+
+/* ==================== ICON BUTTONS ==================== */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.5rem;
+    transition: all var(--transition-speed) var(--transition-easing);
+    cursor: pointer;
+    border: none;
+    background: none;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.icon-btn-edit {
+    color: var(--color-primary-500);
+}
+
+.icon-btn-edit:hover {
+    background-color: rgba(61, 123, 168, 0.1);
+    color: var(--color-primary-600);
+}
+
+.icon-btn-delete {
+    color: #DC2626;
+}
+
+.icon-btn-delete:hover {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: #B91C1C;
+}
+
+.icon-btn-create {
+    color: #059669;
+}
+
+.icon-btn-create:hover {
+    background-color: rgba(5, 150, 105, 0.1);
+    color: #047857;
+}
+
+.icon-btn svg {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Tooltip */
+.icon-btn[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.375rem 0.75rem;
+    background-color: var(--color-gray-900);
+    color: white;
+    font-size: 0.875rem;
+    border-radius: 0.375rem;
+    white-space: nowrap;
+    margin-bottom: 0.5rem;
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* Ensure forms with icon buttons align properly */
+form.inline-block {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    vertical-align: top;
+}
+
+/* ==================== SIDEBAR TOGGLE ICONS ==================== */
+.left-sidebar.collapsed .sidebar-expand-icon {
+    display: block !important;
+}
+
+.left-sidebar.collapsed .sidebar-collapse-icon {
+    display: none !important;
+}
+
+.left-sidebar:not(.collapsed) .sidebar-expand-icon {
+    display: none !important;
+}
+
+.left-sidebar:not(.collapsed) .sidebar-collapse-icon {
+    display: block !important;
+}
+
+/* ==================== UTILITIES ==================== */
+.transition-all {
+    transition: all var(--transition-speed) var(--transition-easing);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: var(--color-gray-100);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-gray-400);
+    border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-500);
+}

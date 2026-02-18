@@ -4,7 +4,7 @@
     <!-- Logo Folder Tab (grey with curved corner) -->
     <div class="logo-folder-tab">
     <a href="{{ route('dashboard') }}" class="flex items-center h-full">
-        <img src="/storage/SYSMYC_TRANS_CROP.png" alt="SYSMYC - Monitoring The Activity of Your Enterprise" width = 140px>
+        <img src="/storage/SYSMYC_TRANS_CROP.png" alt="SYSMYC - Monitoring The Activity of Your Enterprise" width = 120px>
     </a>
 	</div>
     
