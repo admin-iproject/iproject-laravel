@@ -7,6 +7,7 @@ use App\Http\Controllers\CompanySkillController;
 use App\Http\Controllers\UserSkillController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectTeamController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -84,6 +85,14 @@ Route::middleware('auth')->group(function () {
     Route::get('projects-export', [ProjectController::class, 'export'])->name('projects.export');
     Route::post('projects/{id}/restore', [ProjectController::class, 'restore'])->name('projects.restore')->withTrashed();
     Route::delete('projects/{id}/force-delete', [ProjectController::class, 'forceDelete'])->name('projects.force-delete');
+
+    // Project Team (AJAX — used by team slideout)
+    Route::prefix('projects/{project}/team')->name('projects.team.')->group(function () {
+        Route::get('/',            [ProjectTeamController::class, 'index'])  ->name('index');
+        Route::post('/',           [ProjectTeamController::class, 'store'])  ->name('store');
+        Route::put('/{member}',    [ProjectTeamController::class, 'update']) ->name('update');
+        Route::delete('/{member}', [ProjectTeamController::class, 'destroy'])->name('destroy');
+    });
     
     // Tasks Module - Standard RESTful Resource Routes
     Route::resource('tasks', TaskController::class);

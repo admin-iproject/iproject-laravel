@@ -501,17 +501,6 @@ $phases = $project->phases ?? [];
                 <?php endif; ?>
             </button>
 
-            <button onclick="switchProjectTab('tab-team')"
-                    class="project-tab px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px"
-                    data-tab="tab-team">
-                Team
-            </button>
-
-            <button onclick="switchProjectTab('tab-resources')"
-                    class="project-tab px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px"
-                    data-tab="tab-resources">
-                Resources
-            </button>
 
             <button onclick="switchProjectTab('tab-files')"
                     class="project-tab px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px"
@@ -770,30 +759,30 @@ $phases = $project->phases ?? [];
 
                         // Log time (clipboard-document-list)
                         echo '<button onclick="openTaskLogModal(' . $taskId . ')"
-                                       class="p-1 text-gray-300 hover:text-amber-600 rounded transition-colors" title="Log time">';
-                        echo '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                                       class="p-1.5 text-gray-400 hover:text-amber-600 rounded transition-colors" title="Log time">';
+                        echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>';
                         echo '</svg></button>';
 
                         // Add child task
                         echo '<button onclick="openCreateChildTaskModal(' . $taskId . ')"
-                                       class="p-1 text-gray-300 hover:text-green-600 rounded transition-colors" title="Add child task">';
-                        echo '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                                       class="p-1.5 text-gray-400 hover:text-green-600 rounded transition-colors" title="Add child task">';
+                        echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>';
                         echo '</svg></button>';
 
                         // Edit task
                         echo '<button onclick="openEditTaskModal(' . $taskId . ')"
-                                       class="p-1 text-gray-300 hover:text-blue-600 rounded transition-colors" title="Edit task">';
-                        echo '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                                       class="p-1.5 text-gray-400 hover:text-blue-600 rounded transition-colors" title="Edit task">';
+                        echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>';
                         echo '</svg></button>';
 
                         // Delete (project owner only)
                         // Note: permission check done server-side on delete route
                         echo '<button onclick="confirmDeleteTask(' . $taskId . ')"
-                                       class="p-1 text-gray-300 hover:text-red-600 rounded transition-colors" title="Delete task">';
-                        echo '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                                       class="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors" title="Delete task">';
+                        echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>';
                         echo '</svg></button>';
 
@@ -805,7 +794,8 @@ $phases = $project->phases ?? [];
                         // ── Expandable Detail Panel ──────────────────
                         echo '<div id="task-detail-' . $taskId . '" class="task-detail-panel hidden border-t border-gray-100 bg-gray-50"
                                    style="margin-left: ' . ($indent + 18) . 'px;">';
-                        echo '<div class="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">';
+                        echo '<div class="px-6 py-4 flex gap-4 text-sm">';
+                        echo '<div class="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">';
 
                         // Description
                         if ($task->description) {
@@ -879,6 +869,36 @@ $phases = $project->phases ?? [];
                         echo '<p class="text-gray-600 text-xs">' . ($task->last_edited ? $task->last_edited->format('M d, Y') : '—') . '</p>';
                         echo '</div>';
 
+                        echo '</div>'; // end data grid
+                        // Task Team — pinned right column (users assigned to THIS task)
+                        echo '<div class="flex-shrink-0 w-40">';
+                        echo '<p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Task Team</p>';
+                        echo '<div class="space-y-1">';
+                        $taskTeam = $task->team ?? collect();
+                        if ($taskTeam->isEmpty()) {
+                            echo '<span class="text-xs text-gray-400">No members assigned</span>';
+                        } else {
+                            foreach ($taskTeam as $member) {
+                                $mFirst   = $member->user->first_name ?? '';
+                                $mLast    = $member->user->last_name  ?? '';
+                                $mName    = trim($mFirst . ' ' . $mLast);
+                                $isOwner  = (bool)($member->is_owner ?? false);
+                                $nameCls  = $isOwner ? 'font-semibold text-gray-900' : 'text-gray-700';
+                                $initials = strtoupper(substr($mFirst, 0, 1) . substr($mLast, 0, 1));
+                                $avatarBg = $isOwner ? 'bg-amber-400 text-white' : 'bg-gray-200 text-gray-600';
+                                $hours    = $member->hours > 0 ? number_format($member->hours, 1) . 'h' : null;
+                                echo '<div class="flex items-center gap-1.5 mb-1">';
+                                echo '<span class="w-6 h-6 rounded-full ' . $avatarBg . ' flex items-center justify-center text-xs font-bold flex-shrink-0">' . e($initials) . '</span>';
+                                echo '<div class="min-w-0">';
+                                echo '<div class="text-xs ' . $nameCls . ' truncate">' . e($mName) . ($isOwner ? ' ★' : '') . '</div>';
+                                if ($hours) echo '<div class="text-xs text-gray-400">' . $hours . '</div>';
+                                echo '</div>';
+                                echo '</div>';
+                            }
+                        }
+                        echo '</div>';
+                        echo '</div>';
+
                         echo '</div>'; // end grid
                         echo '</div>'; // end detail panel
 
@@ -936,7 +956,7 @@ $phases = $project->phases ?? [];
     </div>
 
     
-    <?php $__currentLoopData = ['tab-overdue' => 'Overdue Tasks', 'tab-team' => 'Team', 'tab-resources' => 'Resources', 'tab-files' => 'Files', 'tab-forums' => 'Forums', 'tab-gantt' => 'Gantt Chart', 'tab-log' => 'Workflow Log']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $tabId => $tabLabel): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+    <?php $__currentLoopData = ['tab-overdue' => 'Overdue Tasks', 'tab-files' => 'Files', 'tab-forums' => 'Forums', 'tab-gantt' => 'Gantt Chart', 'tab-log' => 'Workflow Log']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $tabId => $tabLabel): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
     <div id="<?php echo e($tabId); ?>" class="tab-content hidden">
         <div class="text-center py-16 text-gray-400">
             <p class="text-sm font-medium"><?php echo e($tabLabel); ?></p>
@@ -1047,54 +1067,134 @@ $phases = $project->phases ?? [];
 
     
     <?php if($project->isOwnedBy(auth()->user())): ?>
-    <div id="team-slideout" class="slideout-panel">
+    
+    
+    
+    <div id="team-slideout" class="slideout-panel" style="width: 500px; max-width: 500px;">
         <div class="slideout-header">
-            <h3 class="slideout-title">Team Members</h3>
+            <h3 class="slideout-title">Project Team</h3>
             <button class="slideout-close-btn">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
             </button>
         </div>
-        <div class="slideout-content">
-            <p class="text-gray-500 text-sm mb-4"><?php echo e($project->name); ?></p>
-            <button class="btn-primary w-full mb-4">
-                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Add Team Member
-            </button>
-            <div class="space-y-2">
-                <?php $__empty_1 = true; $__currentLoopData = $project->team; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $member): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
-                <div class="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                                <?php echo e(substr($member->user->first_name ?? '?', 0, 1)); ?><?php echo e(substr($member->user->last_name ?? '', 0, 1)); ?>
 
+        <div class="slideout-content" style="display:flex; flex-direction:column; height:calc(100vh - 128px); overflow:hidden;">
+
+            
+            <div id="team-form-section" style="flex-shrink:0; border-bottom:2px solid #e5e7eb; background:#f9fafb;">
+
+                
+                <button id="team-form-toggle" onclick="toggleTeamForm()"
+                    style="width:100%; display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.75rem; background:none; border:none; cursor:pointer; text-align:left; gap:8px;">
+                    <span id="team-form-title" style="font-size:0.85rem; font-weight:600; color:#1f2937; flex:1;">
+                        + Add Team Member
+                    </span>
+                    <span id="team-cancel-edit-link" class="hidden" onclick="event.stopPropagation(); cancelTeamEdit();"
+                        style="font-size:0.72rem; color:#6b7280; text-decoration:underline; cursor:pointer; white-space:nowrap;">
+                        Cancel Edit
+                    </span>
+                    <svg id="team-form-chevron" style="width:14px; height:14px; color:#9ca3af; transition:transform 0.2s; flex-shrink:0;"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+
+                
+                <div id="team-form-body" style="display:none; padding:0 0.75rem 0.75rem;">
+                    <form id="team-form" onsubmit="saveTeamMember(event)">
+                        <input type="hidden" id="team-edit-id" value="">
+
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label style="font-size:0.7rem; color:#6b7280; font-weight:500; display:block; margin-bottom:2px;">Filter by Skill</label>
+                                <select id="team-skill-filter" onchange="filterUsersBySkill()"
+                                    style="width:100%; font-size:0.8rem; border:1px solid #d1d5db; border-radius:4px; padding:0.375rem 0.5rem; color:#374151; background:#fff;">
+                                    <option value="">— All Skills —</option>
+                                    <?php $__currentLoopData = $companySkills ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $skill): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <option value="<?php echo e($skill->id); ?>"><?php echo e($skill->name); ?></option>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                </select>
                             </div>
                             <div>
-                                <p class="font-medium text-gray-900 text-sm">
-                                    <?php echo e($member->user->first_name ?? ''); ?> <?php echo e($member->user->last_name ?? ''); ?>
-
-                                </p>
-                                <p class="text-xs text-gray-500">
-                                    <?php if($member->role): ?> <?php echo e($member->role->role_name); ?> <?php endif; ?>
-                                    <?php if($member->allocation_percent > 0): ?> · <?php echo e($member->allocation_percent); ?>% <?php endif; ?>
-                                </p>
+                                <label style="font-size:0.7rem; color:#6b7280; font-weight:500; display:block; margin-bottom:2px;">Search User</label>
+                                <input type="text" id="team-user-search" placeholder="Type to search..." oninput="filterUsersBySkill()"
+                                    style="width:100%; font-size:0.8rem; border:1px solid #d1d5db; border-radius:4px; padding:0.375rem 0.5rem;">
                             </div>
                         </div>
-                        <button class="p-1 text-gray-300 hover:text-red-600 transition-colors" title="Remove">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
+
+                        
+                        <div class="mb-2">
+                            <label style="font-size:0.7rem; color:#6b7280; font-weight:500; display:block; margin-bottom:2px;">Select User <span style="color:#ef4444;">*</span></label>
+                            <select id="team-user-id" required onchange="onTeamUserChange()"
+                                style="width:100%; font-size:0.8rem; border:1px solid #d1d5db; border-radius:4px; padding:0.375rem 0.5rem; color:#374151;">
+                                <option value="">— Select a user —</option>
+                            </select>
+                            <div id="team-user-skills-hint" style="font-size:0.7rem; color:#9ca3af; margin-top:2px; min-height:16px;"></div>
+                        </div>
+
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label style="font-size:0.7rem; color:#6b7280; font-weight:500; display:block; margin-bottom:2px;">Assigned Skill</label>
+                                <select id="team-company-skill-id"
+                                    style="width:100%; font-size:0.8rem; border:1px solid #d1d5db; border-radius:4px; padding:0.375rem 0.5rem; color:#374151;">
+                                    <option value="">— No skill —</option>
+                                    <?php $__currentLoopData = $companySkills ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $skill): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <option value="<?php echo e($skill->id); ?>"><?php echo e($skill->name); ?></option>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; color:#6b7280; font-weight:500; display:block; margin-bottom:2px;">Allocation %</label>
+                                <input type="number" id="team-allocation" min="0" max="100" value="100" placeholder="100"
+                                    style="width:100%; font-size:0.8rem; border:1px solid #d1d5db; border-radius:4px; padding:0.375rem 0.5rem;">
+                            </div>
+                        </div>
+
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div>
+                                <label style="font-size:0.7rem; color:#6b7280; font-weight:500; display:block; margin-bottom:2px;">Hourly Cost Override</label>
+                                <div style="position:relative;">
+                                    <span style="position:absolute; left:7px; top:50%; transform:translateY(-50%); color:#9ca3af; font-size:0.8rem;">$</span>
+                                    <input type="number" id="team-hourly-cost" min="0" step="0.01" placeholder="User default"
+                                        style="width:100%; font-size:0.8rem; border:1px solid #d1d5db; border-radius:4px; padding:0.375rem 0.5rem 0.375rem 1.25rem;">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.7rem; color:#6b7280; font-weight:500; display:block; margin-bottom:2px;">Assigned Date</label>
+                                <input type="date" id="team-assigned-date"
+                                    style="width:100%; font-size:0.8rem; border:1px solid #d1d5db; border-radius:4px; padding:0.375rem 0.5rem;"
+                                    value="<?php echo e(date('Y-m-d')); ?>">
+                            </div>
+                        </div>
+
+                        
+                        <div style="display:flex; justify-content:flex-end; margin-top:4px;">
+                            <button type="submit" id="team-submit-btn"
+                                style="padding:0.375rem 1.25rem; background:#9d8854; color:#fff; font-size:0.8rem; font-weight:600; border-radius:5px; border:none; cursor:pointer;"
+                                data-color="#9d8854"
+                                onmouseover="this.style.background='#7d6c3e'" onmouseout="this.style.background=this.dataset.color">
+                                Save
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
-                <p class="text-sm text-gray-400 text-center py-6">No team members yet</p>
-                <?php endif; ?>
             </div>
+
+            
+            <div style="flex:1; overflow-y:auto; padding:0.75rem;">
+                <h4 style="font-size:0.7rem; font-weight:500; color:#6b7280; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem;">
+                    Current Team Members
+                </h4>
+                <div id="team-list" class="space-y-1">
+                    <p class="text-sm text-gray-400 text-center py-4">Loading...</p>
+                </div>
+            </div>
+
         </div>
     </div>
     <?php endif; ?>
@@ -1564,7 +1664,99 @@ $phases = $project->phases ?? [];
 </div>
 
 
+
+<style>
+/* ── Team member list item styles (mirrors dept-item pattern) ── */
+.team-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    margin-bottom: 4px;
+    overflow: hidden;
+    transition: box-shadow 0.15s;
+}
+.team-item:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.team-item-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    gap: 6px;
+    user-select: none;
+}
+.team-toggle-btn {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; color: #9ca3af;
+    background: none; border: none; cursor: pointer; padding: 0;
+    transition: color 0.15s;
+}
+.team-toggle-btn:hover { color: #374151; }
+.team-toggle-arrow { transition: transform 0.2s; }
+.team-toggle-arrow.open { transform: rotate(90deg); }
+.team-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #d1d5db;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; color: #4b5563;
+    flex-shrink: 0;
+}
+.team-name-text {
+    flex: 1; font-size: 0.875rem; font-weight: 500; color: #111827;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.team-badge {
+    font-size: 0.7rem; color: #6b7280; white-space: nowrap;
+    background: #f3f4f6; border-radius: 3px; padding: 1px 5px;
+}
+.team-actions {
+    display: flex; gap: 2px; flex-shrink: 0;
+}
+.team-action-btn {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; border: none; background: none;
+    cursor: pointer; color: #9ca3af;
+    transition: background 0.15s, color 0.15s; padding: 0;
+}
+.team-action-btn:hover.edit-btn  { background: #fef3c7; color: #d97706; }
+.team-action-btn:hover.del-btn   { background: #fef2f2; color: #dc2626; }
+.team-detail-panel {
+    display: none;
+    padding: 8px 12px 10px 28px;
+    border-top: 1px solid #f3f4f6;
+    background: #f9fafb;
+    font-size: 0.78rem; color: #374151; line-height: 1.6;
+}
+.team-detail-panel.open { display: block; }
+.team-detail-grid {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 2px 8px;
+}
+.team-detail-label { color: #9ca3af; font-weight: 500; }
+</style>
+
 <script>
+// ── Global project constants (available to all script blocks) ──
+const projectId   = <?php echo e($project->id); ?>;
+const projectCsrf = '<?php echo e(csrf_token()); ?>';
+// Company users with skills — passed from ProjectController::show()
+const allCompanyUsers = <?php echo json_encode($companyUsers ?? [], 15, 512) ?>;
+// Full company skills list — for restoring dropdown when no user selected
+window._allCompanySkills = <?php echo json_encode($companySkills ?? [], 15, 512) ?>;
+// Team state — global so all script blocks can access
+let allTeamMembers = [];
+let editingTeamId  = null;
+
+// ── BOM-safe JSON parser — strips UTF-8 BOM and whitespace before parsing ──
+function safeJson(r) {
+    return r.text().then(text => {
+        // Strip BOM (U+FEFF) and any leading whitespace/invisible chars
+        const clean = text.replace(/^[﻿\s]+/, '');
+        return JSON.parse(clean);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
     // ─────────────────────────────────────────────
@@ -1647,7 +1839,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.openCreateChildTaskModal = function (parentTaskId) {
         if (parentSelect) parentSelect.value = parentTaskId;
-        document.getElementById('taskModalTitle').textContent = 'Create Child Task';
+        document.getElementById('taskModalTitle').textContent = 'Create Task';
         openModal();
     };
 
@@ -1669,7 +1861,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
             }
-        }).then(r => r.json()).then(data => {
+        }).then(safeJson).then(data => {
             if (data.success) window.location.reload();
             else alert('Error deleting task: ' + (data.message ?? 'Unknown error'));
         }).catch(() => alert('Request failed. Please try again.'));
@@ -1731,8 +1923,8 @@ document.addEventListener('DOMContentLoaded', function () {
             body: JSON.stringify(data),
         })
         .then(r => {
-            if (!r.ok) return r.json().then(err => { throw err; });
-            return r.json();
+            if (!r.ok) return safeJson(r).then(err => { throw err; });
+            return safeJson(r);
         })
         .then(() => {
             closeModal();
@@ -1815,7 +2007,450 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+
+    // ─────────────────────────────────────────────
+    // TEAM SLIDEOUT
+    // ─────────────────────────────────────────────
+    // allTeamMembers and editingTeamId declared globally above
+
+    // Load team when slideout opens — belt-and-suspenders approach matching departments pattern
+    document.querySelectorAll('[data-slideout="team-slideout"]').forEach(el => {
+        el.addEventListener('click', () => {
+            setTimeout(() => {
+                reloadTeam();
+                populateTeamUserDropdown('', '');
+            }, 50);
+        });
+    });
+
+    // MutationObserver — watches for class="open" being added by the layout's slideout handler
+    const teamPanel = document.getElementById('team-slideout');
+    if (teamPanel) {
+        let teamPanelWasOpen = false;
+        new MutationObserver(mutations => {
+            mutations.forEach(m => {
+                if (m.type === 'attributes') {
+                    const isOpen = teamPanel.classList.contains('open') ||
+                                   teamPanel.style.transform === 'translateX(0)' ||
+                                   parseInt(teamPanel.style.right) === 0;
+                    if (isOpen && !teamPanelWasOpen) {
+                        teamPanelWasOpen = true;
+                        reloadTeam();
+                        populateTeamUserDropdown('', '');
+                    } else if (!isOpen) {
+                        teamPanelWasOpen = false;
+                    }
+                }
+            });
+        }).observe(teamPanel, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+
 });
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// TEAM SLIDEOUT FUNCTIONS
+// ══════════════════════════════════════════════════════════════
+
+// ── Skill filter → repopulate user dropdown ──────────────────
+function filterUsersBySkill() {
+    const skillId = document.getElementById('team-skill-filter').value;
+    const search  = document.getElementById('team-user-search').value.toLowerCase().trim();
+    populateTeamUserDropdown(skillId, search);
+    // Auto-set the assigned skill dropdown to match filter selection
+    // (user can still override it manually)
+    if (skillId) {
+        document.getElementById('team-company-skill-id').value = skillId;
+    } else {
+        // Filter cleared — reset skill assignment to empty (no skill)
+        if (!document.getElementById('team-edit-id').value) {
+            document.getElementById('team-company-skill-id').value = '';
+        }
+    }
+}
+
+function populateTeamUserDropdown(skillId, search) {
+    const sel = document.getElementById('team-user-id');
+    if (!sel) return;
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">— Select a user —</option>';
+
+    // Build set of user_ids already on team (to mark them)
+    const onTeamIds = new Set(allTeamMembers.map(m => String(m.user_id)));
+
+    allCompanyUsers.forEach(user => {
+        const userSkillIds = (user.skills || []).map(s => String(s.id));
+
+        // Skill filter:
+        // "" = All Skills → show ALL users (including those with no skills)
+        // specific skillId → only users who have that skill
+        if (skillId && !userSkillIds.includes(String(skillId))) return;
+
+        // Name search filter
+        const fullName = ((user.first_name || '') + ' ' + (user.last_name || '')).toLowerCase();
+        if (search && !fullName.includes(search)) return;
+
+        const opt = document.createElement('option');
+        opt.value = user.id;
+        let label = (user.first_name || '') + ' ' + (user.last_name || '');
+
+        // Append skill hint
+        if (user.skills && user.skills.length > 0) {
+            label += ' (' + user.skills.map(s => s.name).join(', ') + ')';
+        }
+        // Mark already-on-team users
+        if (onTeamIds.has(String(user.id))) {
+            label += ' ✓ on team';
+            opt.style.color = '#9ca3af';
+        }
+
+        opt.textContent = label;
+        if (String(user.id) === String(currentVal)) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+// ── When user is selected, show their skills and auto-assign ─
+function onTeamUserChange() {
+    const userId        = document.getElementById('team-user-id').value;
+    const skillSel      = document.getElementById('team-company-skill-id');
+    const hint          = document.getElementById('team-user-skills-hint');
+    const filterSkillId = document.getElementById('team-skill-filter').value;
+
+    // Reset skill dropdown to full company list when no user selected
+    if (!userId) {
+        hint.textContent = '';
+        rebuildSkillDropdown(null, '');
+        return;
+    }
+
+    const user = allCompanyUsers.find(u => String(u.id) === String(userId));
+    if (!user) return;
+
+    const skills = user.skills || [];
+
+    if (skills.length === 0) {
+        // User has no skills — show blank option only, leave assignable
+        hint.textContent = 'No skills assigned to this user';
+        hint.style.color = '#9ca3af';
+        rebuildSkillDropdown([], '');
+    } else {
+        hint.textContent = '';
+        // Rebuild dropdown to only show THIS user's skills
+        // Auto-select: filter skill if user has it, else single skill, else blank
+        let autoSelect = '';
+        if (filterSkillId && skills.find(s => String(s.id) === String(filterSkillId))) {
+            autoSelect = filterSkillId;
+        } else if (skills.length === 1) {
+            autoSelect = String(skills[0].id);
+        }
+        rebuildSkillDropdown(skills, autoSelect);
+    }
+}
+
+// Rebuild the assigned skill dropdown
+// skills = array of {id, name} for this user, or null = show all company skills
+function rebuildSkillDropdown(skills, selectedId) {
+    const skillSel = document.getElementById('team-company-skill-id');
+    const currentVal = selectedId || skillSel.value;
+    skillSel.innerHTML = '<option value="">— No skill —</option>';
+
+    const list = (skills === null)
+        ? (window._allCompanySkills || [])   // full list when no user selected
+        : skills;                              // user's skills only
+
+    list.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        if (String(s.id) === String(currentVal)) opt.selected = true;
+        skillSel.appendChild(opt);
+    });
+}
+
+// ── Load / Reload team list ───────────────────────────────────
+function reloadTeam() {
+    fetch(`/projects/${projectId}/team`)
+        .then(safeJson)
+        .then(data => {
+            allTeamMembers = data.team || [];
+            renderTeamList();
+        })
+        .catch(() => {
+            document.getElementById('team-list').innerHTML =
+                '<p class="text-sm text-red-500 text-center py-4">Failed to load team.</p>';
+        });
+}
+
+// ── Render team list ──────────────────────────────────────────
+function renderTeamList() {
+    const list = document.getElementById('team-list');
+    if (!allTeamMembers.length) {
+        list.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">No team members yet. Add one above!</p>';
+        return;
+    }
+    list.innerHTML = '';
+    allTeamMembers.forEach(m => list.appendChild(buildTeamNode(m)));
+}
+
+// ── Build a single team member node ──────────────────────────
+function buildTeamNode(member) {
+    const firstName = member.user ? (member.user.first_name || '') : '';
+    const lastName  = member.user ? (member.user.last_name  || '') : '';
+    const fullName  = (firstName + ' ' + lastName).trim() || 'Unknown';
+    const initials  = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+    const skillName = member.skill ? member.skill.name : null;
+    const alloc     = member.allocation_percent > 0 ? member.allocation_percent + '%' : null;
+
+    const wrapper = document.createElement('div');
+
+    const item = document.createElement('div');
+    item.className = 'team-item';
+    item.dataset.memberId = member.id;
+
+    // Header row
+    const header = document.createElement('div');
+    header.className = 'team-item-header';
+
+    // Toggle arrow
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'team-toggle-btn';
+    toggleBtn.innerHTML = `<svg class="team-toggle-arrow w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+    </svg>`;
+    toggleBtn.onclick = () => toggleTeamDetail(member.id);
+
+    // Avatar
+    const avatar = document.createElement('div');
+    avatar.className = 'team-avatar';
+    avatar.textContent = initials || '?';
+
+    // Name
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'team-name-text';
+    nameSpan.textContent = fullName;
+
+    // Skill badge
+    const badge = document.createElement('span');
+    badge.className = 'team-badge';
+    badge.textContent = skillName || (alloc || '');
+    badge.style.display = (skillName || alloc) ? '' : 'none';
+
+    // Allocation badge (separate if skill also shown)
+    const allocBadge = document.createElement('span');
+    allocBadge.className = 'team-badge';
+    allocBadge.style.background = '#eff6ff';
+    allocBadge.style.color = '#1d4ed8';
+    allocBadge.textContent = alloc || '';
+    allocBadge.style.display = (alloc && skillName) ? '' : 'none';
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.className = 'team-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'team-action-btn edit-btn';
+    editBtn.title = 'Edit member';
+    editBtn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+    </svg>`;
+    editBtn.onclick = () => loadTeamMemberIntoForm(member);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'team-action-btn del-btn';
+    delBtn.title = 'Remove from project';
+    delBtn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+    </svg>`;
+    delBtn.onclick = () => removeTeamMember(member.id, fullName);
+
+    actions.append(editBtn, delBtn);
+    header.append(toggleBtn, avatar, nameSpan, badge, allocBadge, actions);
+
+    // Detail panel
+    const detail = document.createElement('div');
+    detail.className = 'team-detail-panel';
+    detail.id = `team-detail-${member.id}`;
+
+    const rows = [];
+    if (skillName)                 rows.push(['Skill',     skillName]);
+    if (member.allocation_percent) rows.push(['Allocation', member.allocation_percent + '%']);
+    if (member.hourly_cost)        rows.push(['Rate',      '$' + parseFloat(member.hourly_cost).toFixed(2) + '/hr']);
+    if (member.assigned_date)      rows.push(['Assigned',  member.assigned_date]);
+    if (member.assigned_by_user)   rows.push(['Added by',  (member.assigned_by_user.first_name || '') + ' ' + (member.assigned_by_user.last_name || '')]);
+
+    if (rows.length) {
+        const grid = document.createElement('div');
+        grid.className = 'team-detail-grid';
+        rows.forEach(([label, val]) => {
+            const lEl = document.createElement('span');
+            lEl.className = 'team-detail-label';
+            lEl.textContent = label;
+            const vEl = document.createElement('span');
+            vEl.textContent = val;
+            grid.append(lEl, vEl);
+        });
+        detail.appendChild(grid);
+    } else {
+        detail.innerHTML = '<span class="text-gray-400">No additional details.</span>';
+    }
+
+    item.append(header, detail);
+    wrapper.appendChild(item);
+    return wrapper;
+}
+
+// ── Toggle detail panel ───────────────────────────────────────
+function toggleTeamDetail(id) {
+    const panel = document.getElementById(`team-detail-${id}`);
+    if (!panel) return;
+    panel.classList.toggle('open');
+    const item = panel.closest('.team-item');
+    if (item) {
+        const arrow = item.querySelector('.team-toggle-arrow');
+        if (arrow) arrow.classList.toggle('open');
+    }
+}
+
+// ── Load member into form for edit ────────────────────────────
+function loadTeamMemberIntoForm(member) {
+    editingTeamId = member.id;
+    openTeamForm();
+    document.getElementById('team-form-title').textContent = '✎ Edit Team Member';
+    document.getElementById('team-cancel-edit-link').classList.remove('hidden');
+    document.getElementById('team-edit-id').value = member.id;
+
+    // Set user (can't change user in edit — show name only)
+    const userSel = document.getElementById('team-user-id');
+    // Rebuild with just this user selected
+    userSel.innerHTML = '';
+    const firstName = member.user ? (member.user.first_name || '') : '';
+    const lastName  = member.user ? (member.user.last_name  || '') : '';
+    const opt = document.createElement('option');
+    opt.value = member.user_id;
+    opt.textContent = (firstName + ' ' + lastName).trim();
+    opt.selected = true;
+    userSel.appendChild(opt);
+    userSel.disabled = true; // can't change user when editing
+
+    document.getElementById('team-company-skill-id').value  = member.company_skill_id || '';
+    document.getElementById('team-allocation').value        = member.allocation_percent || 100;
+    document.getElementById('team-hourly-cost').value       = member.hourly_cost || '';
+    document.getElementById('team-assigned-date').value     = member.assigned_date || '';
+
+    const btn = document.getElementById('team-submit-btn');
+    btn.style.background = '#f59e0b';
+    btn.dataset.color = '#f59e0b';
+    btn.onmouseover = function() { this.style.background='#d97706'; };
+    btn.onmouseout  = function() { this.style.background=this.dataset.color; };
+
+    // Highlight item
+    document.querySelectorAll('.team-item').forEach(el => el.style.outline = '');
+    const editedItem = document.querySelector(`.team-item[data-member-id="${member.id}"]`);
+    if (editedItem) { editedItem.style.outline = '2px solid #f59e0b'; editedItem.style.borderRadius = '6px'; }
+}
+
+// ── Cancel edit ───────────────────────────────────────────────
+function cancelTeamEdit() {
+    editingTeamId = null;
+    resetTeamForm();
+    document.querySelectorAll('.team-item').forEach(el => el.style.outline = '');
+}
+
+// ── Reset form ────────────────────────────────────────────────
+function resetTeamForm() {
+    editingTeamId = null;
+    document.getElementById('team-edit-id').value = '';
+    document.getElementById('team-form').reset();
+    document.getElementById('team-assigned-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('team-form-title').textContent = '+ Add Team Member';
+    document.getElementById('team-cancel-edit-link').classList.add('hidden');
+    document.getElementById('team-user-id').disabled = false;
+    document.getElementById('team-user-skills-hint').textContent = '';
+    document.getElementById('team-skill-filter').value = '';
+    document.getElementById('team-user-search').value = '';
+    populateTeamUserDropdown('', '');
+    const btn = document.getElementById('team-submit-btn');
+    btn.style.background = '#9d8854';
+    btn.dataset.color = '#9d8854';
+    btn.onmouseover = function() { this.style.background='#7d6c3e'; };
+    btn.onmouseout  = function() { this.style.background=this.dataset.color; };
+    closeTeamForm();
+}
+
+// ── Save (create or update) ───────────────────────────────────
+function saveTeamMember(e) {
+    e.preventDefault();
+    const id     = document.getElementById('team-edit-id').value;
+    const isEdit = !!id;
+
+    const payload = {
+        user_id:           document.getElementById('team-user-id').value          || null,
+        company_skill_id:  document.getElementById('team-company-skill-id').value || null,
+        allocation_percent: parseInt(document.getElementById('team-allocation').value) || 0,
+        hourly_cost:       document.getElementById('team-hourly-cost').value      || null,
+        assigned_date:     document.getElementById('team-assigned-date').value    || null,
+    };
+
+    if (!payload.user_id) { alert('Please select a user.'); return; }
+
+    const url    = isEdit ? `/projects/${projectId}/team/${id}` : `/projects/${projectId}/team`;
+    const method = isEdit ? 'PUT' : 'POST';
+
+    const btn = document.getElementById('team-submit-btn');
+    btn.disabled = true;
+
+    fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
+        body: JSON.stringify(payload)
+    })
+    .then(safeJson)
+    .then(data => {
+        btn.disabled = false;
+        if (data.success) {
+            resetTeamForm();
+            reloadTeam();
+        } else {
+            alert(data.message || 'Error saving team member');
+        }
+    })
+    .catch(err => { btn.disabled = false; alert('Error: ' + err.message); });
+}
+
+// ── Remove team member ────────────────────────────────────────
+function removeTeamMember(id, name) {
+    if (!confirm(`Remove "${name}" from this project?`)) return;
+    fetch(`/projects/${projectId}/team/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': projectCsrf }
+    })
+    .then(safeJson)
+    .then(data => {
+        if (data.success) {
+            if (editingTeamId == id) cancelTeamEdit();
+            reloadTeam();
+        } else {
+            alert(data.message || 'Error removing team member');
+        }
+    });
+}
+
+// ── Form open/close/toggle ────────────────────────────────────
+function toggleTeamForm() {
+    const body = document.getElementById('team-form-body');
+    if (body.style.display === 'none') { openTeamForm(); }
+    else if (!editingTeamId) { closeTeamForm(); }
+}
+function openTeamForm() {
+    document.getElementById('team-form-body').style.display = 'block';
+    document.getElementById('team-form-chevron').style.transform = 'rotate(180deg)';
+}
+function closeTeamForm() {
+    document.getElementById('team-form-body').style.display = 'none';
+    document.getElementById('team-form-chevron').style.transform = 'rotate(0deg)';
+}
 </script>
 
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/projects/show.blade.php ENDPATH**/ ?>

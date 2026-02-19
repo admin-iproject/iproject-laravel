@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Company;
+use App\Models\CompanySkill;
 use App\Models\Department;
 use App\Models\User;
 use App\Http\Requests\StoreProjectRequest;
@@ -145,46 +146,76 @@ class ProjectController extends Controller
             'creator',
             'lastEditedBy',
             'tasks' => function ($query) {
-                // Load ALL tasks with owner and checklist counts
+                // Load ALL tasks with children recursively
                 $query->with([
-                        'owner:id,first_name,last_name',
-                        'checklist',
+                        'children' => function($q) {
+                            $q->with('children.children.children.children'); // Support 5 levels deep
+                        },
+                        'team.user', // Task team members for the unfold panel
                     ])
-                    ->select(
-                        'id', 'project_id', 'name', 'description', 'parent_id',
-                        'status', 'priority', 'percent_complete',
-                        'start_date', 'end_date', 'duration', 'duration_type',
-                        'level', 'task_order', 'milestone', 'access',
-                        'target_budget', 'actual_budget', 'hours_worked',
-                        'task_ignore_budget', 'phase', 'task_phase',
-                        'cost_code', 'risk', 'owner_id', 'task_assigned',
-                        'last_edited', 'created_at', 'updated_at'
-                    )
+                    ->select('id', 'project_id', 'name', 'parent_id', 'status', 'priority', 
+                            'percent_complete', 'start_date', 'end_date', 'level', 
+                            'target_budget', 'task_ignore_budget', 'owner_id')
                     ->orderBy('task_order', 'asc')
                     ->orderBy('id', 'asc');
             },
             'team.user',
             'team.role',
+            'team.skill',
         ]);
+
+        // Company users with their skills — for team slideout skill-filter + user dropdown
+        // Users belonging to the same company as the project, with their company_skills
+        $companyId    = $project->company_id;
+        $companyUsers = User::where('company_id', $companyId)
+            ->select('id', 'first_name', 'last_name', 'email')
+            ->with(['skills' => function ($q) use ($companyId) {
+                // user_skills pivot: user_id + company_skill_id
+                // Only skills belonging to this company
+                $q->where('company_skills.company_id', $companyId)
+                  ->select('company_skills.id', 'company_skills.name')
+                  ->orderBy('company_skills.sort_order');
+            }])
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get()
+            ->map(fn($u) => [
+                'id'         => $u->id,
+                'first_name' => $u->first_name,
+                'last_name'  => $u->last_name,
+                'email'      => $u->email,
+                // skills may be empty — that's fine, user shows under "All Skills"
+                'skills'     => $u->skills->map(fn($s) => [
+                    'id'   => $s->id,
+                    'name' => $s->name,
+                ])->values(),
+            ]);
+
+        // Company skills list — for skill filter dropdown
+        $companySkills = CompanySkill::where('company_id', $companyId)
+            ->select('id', 'name')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
 
         // Calculate statistics
         $stats = [
-            'total_tasks' => $project->tasks->count(), // Use collection count (already loaded)
-            'completed_tasks' => $project->tasks->where('percent_complete', 100)->count(),
-            'overdue_tasks' => $project->tasks
+            'total_tasks'      => $project->tasks->count(),
+            'completed_tasks'  => $project->tasks->where('percent_complete', 100)->count(),
+            'overdue_tasks'    => $project->tasks
                 ->filter(function($task) {
                     return $task->end_date && 
                            $task->end_date->isPast() && 
                            $task->percent_complete < 100;
                 })
                 ->count(),
-            'team_members' => $project->team->count(),
+            'team_members'     => $project->team->count(),
             'progress_percent' => $project->progress_percent,
-            'days_remaining' => $project->days_remaining,
+            'days_remaining'   => $project->days_remaining,
             'budget_remaining' => $project->budget_remaining,
         ];
 
-        return view('projects.show', compact('project', 'stats'));
+        return view('projects.show', compact('project', 'stats', 'companyUsers', 'companySkills'));
     }
 
     /**

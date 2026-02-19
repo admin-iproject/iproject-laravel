@@ -21,8 +21,10 @@ class ProjectTeam extends Model
     protected $fillable = [
         'project_id',
         'user_id',
+        'company_skill_id',
         'role_id',
         'allocation_percent',
+        'hourly_cost',
         'assigned_date',
         'assigned_by',
     ];
@@ -31,13 +33,13 @@ class ProjectTeam extends Model
      * The attributes that should be cast.
      */
     protected $casts = [
-        'assigned_date' => 'datetime',
+        'assigned_date'      => 'datetime',
+        'allocation_percent' => 'integer',
+        'hourly_cost'        => 'decimal:2',
     ];
 
-    /**
-     * Relationships
-     */
-    
+    // ── Relationships ─────────────────────────────────────────
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
@@ -46,6 +48,11 @@ class ProjectTeam extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function skill(): BelongsTo
+    {
+        return $this->belongsTo(CompanySkill::class, 'company_skill_id');
     }
 
     public function role(): BelongsTo
