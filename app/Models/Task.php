@@ -197,60 +197,80 @@ class Task extends Model
     }
 
     /**
-     * Calculate actual budget from time logs (includes descendants)
+     * Calculate actual budget from own time logs + stored children actual_budget.
+     * Does NOT recurse — relies on children already having correct actual_budget values.
      */
     public function calculateActualBudget(): float
     {
-        // Get own logs
-        $ownLogs = $this->timeLogs()
+        $ownCost = $this->timeLogs()
             ->join('users', 'task_log.user_id', '=', 'users.id')
             ->selectRaw('SUM(task_log.hours * users.hourly_cost) as total')
             ->value('total') ?? 0;
-        
-        // Get children logs recursively
-        $childrenLogs = 0;
-        foreach ($this->children as $child) {
-            $childrenLogs += $child->calculateActualBudget();
-        }
-        
-        return $ownLogs + $childrenLogs;
+
+        $childrenCost = $this->children()
+            ->where('task_ignore_budget', false)
+            ->sum('actual_budget');
+
+        return $ownCost + $childrenCost;
     }
 
     /**
-     * Update target budget based on task type
+     * Update target budget for this task only (no recursion into children).
+     * Then walk UP the parent chain — each ancestor recalculates itself
+     * from its direct children only. Stops when there is no parent.
+     * Max depth = tree depth (typically 3-4 levels), never touches siblings.
      */
     public function updateTargetBudget(): void
     {
         if ($this->hasChildren()) {
-            // Parent task: Auto-calculate from children
+            // Parent task: sum direct children only (children already saved)
             $this->target_budget = $this->calculateTargetFromChildren();
         } else {
-            // Leaf task: Calculate from team if team exists
+            // Leaf task: derive from team assignment
             if ($this->team()->exists()) {
                 $this->target_budget = $this->calculateTargetFromTeam();
             }
-            // Otherwise keep manual entry
+            // Otherwise leave manual entry intact
         }
-        
+
         $this->saveQuietly();
-        
-        // Bubble up to parent
-        if ($this->parent) {
-            $this->parent->updateTargetBudget();
+
+        // Walk up ONE level — let parent recalculate itself (not this whole tree)
+        if ($this->parent_id) {
+            $parent = Task::find($this->parent_id); // fresh query, not cached relation
+            if ($parent) {
+                $parent->updateTargetBudget();
+            }
         }
     }
 
     /**
-     * Update actual budget and bubble up
+     * Update actual budget for this task only.
+     * Uses a single SUM query on direct children — no recursive PHP loops.
+     * Then walks UP the parent chain.
      */
     public function updateActualBudget(): void
     {
-        $this->actual_budget = $this->calculateActualBudget();
+        // Own time logs cost
+        $ownCost = $this->timeLogs()
+            ->join('users', 'task_log.user_id', '=', 'users.id')
+            ->selectRaw('SUM(task_log.hours * users.hourly_cost) as total')
+            ->value('total') ?? 0;
+
+        // Children actual budgets — already stored on each child row, just sum them
+        $childrenCost = $this->children()
+            ->where('task_ignore_budget', false)
+            ->sum('actual_budget');
+
+        $this->actual_budget = $ownCost + $childrenCost;
         $this->saveQuietly();
-        
-        // Bubble up to parent
-        if ($this->parent) {
-            $this->parent->updateActualBudget();
+
+        // Walk up ONE level
+        if ($this->parent_id) {
+            $parent = Task::find($this->parent_id);
+            if ($parent) {
+                $parent->updateActualBudget();
+            }
         }
     }
 

@@ -28,7 +28,7 @@ class UpdateTaskRequest extends FormRequest
             // Dates & Duration
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-            'duration' => 'nullable|numeric|min:0',
+            'duration' => 'required|numeric|min:0',
             'duration_type' => 'nullable|integer|in:1,24',
             
             // Status & Progress
@@ -53,6 +53,15 @@ class UpdateTaskRequest extends FormRequest
             // Additional
             'contact_id' => 'nullable|exists:contacts,id',
             'task_order' => 'nullable|integer',
+
+            // Task Team — assigned in same PUT as update
+            'team_members'   => 'nullable|array',
+            'team_members.*' => 'exists:users,id',
+            'team_hours'     => 'nullable|array',
+            'team_hours.*'   => 'numeric|min:0',
+            'owner_hours'    => 'nullable|numeric|min:0',
+            'split_evenly'   => 'nullable|boolean',
+            'total_hours'    => 'nullable|numeric|min:0',
         ];
     }
 
@@ -94,10 +103,16 @@ class UpdateTaskRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Set last_edited info
-        $this->merge([
-            'last_edited' => now(),
+        $defaults = [
+            'last_edited'    => now(),
             'last_edited_by' => auth()->id(),
-        ]);
+        ];
+
+        // Ensure duration is never null (DB column is NOT NULL)
+        if (!$this->has('duration') || $this->duration === null || $this->duration === '') {
+            $defaults['duration'] = 0;
+        }
+
+        $this->merge($defaults);
     }
 }
