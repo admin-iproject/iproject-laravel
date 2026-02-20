@@ -12,8 +12,81 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     // ─────────────────────────────────────────────
-    // TASK CHILDREN TOGGLE
+    // UI HELPERS — toast + confirm (replaces alert/confirm)
     // ─────────────────────────────────────────────
+
+    /** Floating toast — replaces alert(). type: 'error'|'success'|'info' */
+    window.showToast = function(message, type = 'error') {
+        const existing = document.getElementById('_appToast');
+        if (existing) existing.remove();
+        const colors = {
+            error:   'bg-red-600',
+            success: 'bg-green-600',
+            info:    'bg-gray-700',
+        };
+        const icons = { error: '✕', success: '✓', info: 'ℹ' };
+        const el = document.createElement('div');
+        el.id = '_appToast';
+        el.className = `fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3
+                        ${colors[type] || colors.error} text-white text-sm font-medium
+                        px-5 py-3 rounded-xl shadow-xl transition-all duration-300 opacity-0`;
+        el.style.minWidth = '260px';
+        el.innerHTML = `<span class="text-base leading-none">${icons[type] || '✕'}</span>
+                        <span>${message}</span>
+                        <button onclick="this.parentElement.remove()" class="ml-auto text-white/70 hover:text-white text-lg leading-none">×</button>`;
+        document.body.appendChild(el);
+        requestAnimationFrame(() => el.classList.replace('opacity-0', 'opacity-100'));
+        setTimeout(() => { el.classList.replace('opacity-100', 'opacity-0'); setTimeout(() => el.remove(), 300); }, 4000);
+    };
+
+    /** Floating confirm dialog — replaces confirm() for delete actions outside a form context */
+    window.showFloatingConfirm = function(message, onConfirm, confirmLabel = 'Yes, delete', confirmClass = 'bg-red-500 hover:bg-red-600') {
+        const existing = document.getElementById('_appConfirm');
+        if (existing) existing.remove();
+        const el = document.createElement('div');
+        el.id = '_appConfirm';
+        el.className = `fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999]
+                        bg-white border border-gray-200 rounded-xl shadow-2xl
+                        px-5 py-4 text-sm transition-all duration-200 opacity-0`;
+        el.style.minWidth = '300px';
+        el.innerHTML = `<p class="font-medium text-gray-800 mb-3">${message}</p>
+                        <div class="flex gap-2">
+                            <button id="_appConfirmYes"
+                                    class="flex-1 py-2 ${confirmClass} text-white text-xs font-semibold rounded-lg transition-colors">
+                                ${confirmLabel}
+                            </button>
+                            <button id="_appConfirmNo"
+                                    class="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg transition-colors">
+                                Cancel
+                            </button>
+                        </div>`;
+        document.body.appendChild(el);
+        requestAnimationFrame(() => el.classList.replace('opacity-0', 'opacity-100'));
+        el.querySelector('#_appConfirmYes').onclick = () => { el.remove(); onConfirm(); };
+        el.querySelector('#_appConfirmNo').onclick  = () => { el.remove(); };
+        // Click outside to dismiss
+        setTimeout(() => {
+            document.addEventListener('click', function handler(e) {
+                if (!el.contains(e.target)) { el.remove(); document.removeEventListener('click', handler); }
+            });
+        }, 100);
+    };
+
+    /** Inline log form confirm — for zero-hours warning inside the log form */
+    window.showLogConfirm = function(message, onConfirm) {
+        const banner  = document.getElementById('logConfirmBanner');
+        const msgEl   = document.getElementById('logConfirmMessage');
+        const yesBtn  = document.getElementById('logConfirmYes');
+        const noBtn   = document.getElementById('logConfirmNo');
+        if (!banner) { if (onConfirm) onConfirm(); return; }
+        msgEl.textContent = message;
+        banner.classList.remove('hidden');
+        // Scroll banner into view
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const cleanup = () => banner.classList.add('hidden');
+        yesBtn.onclick = () => { cleanup(); if (onConfirm) onConfirm(); };
+        noBtn.onclick  = () => { cleanup(); };
+    };
     window.toggleTaskChildren = function (taskId) {
         const container = document.getElementById('children-' + taskId);
         const icon      = document.getElementById('toggle-icon-' + taskId);
@@ -146,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (el) { el.textContent = error.errors[field][0]; el.classList.remove('hidden'); }
                 });
             } else {
-                alert('Error: ' + (error.message ?? 'Unknown error'));
+                showToast('Error: ' + (error.message ?? 'Unknown error'));
             }
         });
     });
@@ -189,10 +262,10 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .then(safeJson)
         .then(data => {
-            if (!data.success) { alert('Failed to load task data'); closeEditModal(); return; }
+            if (!data.success) { showToast('Failed to load task data'); closeEditModal(); return; }
             populateEditForm(data.task, data.taskTeam, data.projectTeam);
         })
-        .catch(err => { alert('Error loading task: ' + err.message); closeEditModal(); });
+        .catch(err => { showToast('Error loading task: ' + err.message); closeEditModal(); });
     };
 
     function populateEditForm(task, taskTeam, projectTeam) {
@@ -329,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (el) { el.textContent = error.errors[field][0]; el.classList.remove('hidden'); }
                 });
             } else {
-                alert('Error: ' + (error.message ?? 'Unknown error'));
+                showToast('Error: ' + (error.message ?? 'Unknown error'));
             }
         });
     });
@@ -338,17 +411,18 @@ document.addEventListener('DOMContentLoaded', function () {
     // DELETE TASK
     // ─────────────────────────────────────────────
     window.confirmDeleteTask = function (taskId) {
-        if (!confirm('Delete this task? This cannot be undone.')) return;
-        fetch(window._taskDestroyBaseUrl.replace('__ID__', taskId), {
-            method:  'DELETE',
-            headers: { 'X-CSRF-TOKEN': projectCsrf, 'Accept': 'application/json' },
-        })
-        .then(safeJson)
-        .then(data => {
-            if (data.success) window.location.reload();
-            else alert('Error deleting task: ' + (data.message ?? 'Unknown error'));
-        })
-        .catch(() => alert('Request failed. Please try again.'));
+        showFloatingConfirm('Delete this task? This cannot be undone.', () => {
+            fetch(window._taskDestroyBaseUrl.replace('__ID__', taskId), {
+                method:  'DELETE',
+                headers: { 'X-CSRF-TOKEN': projectCsrf, 'Accept': 'application/json' },
+            })
+            .then(safeJson)
+            .then(data => {
+                if (data.success) window.location.reload();
+                else showToast('Error deleting task: ' + (data.message ?? 'Unknown error'));
+            })
+            .catch(() => showToast('Request failed. Please try again.'));
+        });
     };
 
     // ─────────────────────────────────────────────
@@ -357,7 +431,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.openTaskLogModal = function (taskId) {
         _logCurrentTaskId = taskId;
         document.getElementById('logDate').value = new Date().toISOString().split('T')[0];
-        _resetLogForm();
+        _resetLogForm(false); // flag state will be corrected once _loadLogData returns
         document.getElementById('taskLogModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
         _loadLogData(taskId);
@@ -380,10 +454,19 @@ document.addEventListener('DOMContentLoaded', function () {
     window.submitTaskLog = function () {
         const taskId = _logCurrentTaskId;
         if (!taskId) return;
-        const hours  = parseFloat(document.getElementById('logHours').value);
+        const hoursEl = document.getElementById('logHours');
+        const hours   = hoursEl.value === '' ? null : parseFloat(hoursEl.value);
         const date   = document.getElementById('logDate').value;
         const status = document.getElementById('logSaveStatus');
-        if (!hours || hours <= 0) { _logStatus('Please enter valid hours.', 'red'); return; }
+        if (hours === null || isNaN(hours) || hours < 0) { _logStatus('Please enter valid hours.', 'red'); return; }
+        if (hours === 0) {
+            showLogConfirm('You entered 0 hours — did you forget to add your time?', () => _doSubmitTaskLog(taskId, hours, date));
+            return;
+        }
+        _doSubmitTaskLog(taskId, hours, date);
+    };
+
+    function _doSubmitTaskLog(taskId, hours, date) {
         if (!date)               { _logStatus('Please select a date.', 'red'); return; }
         _logStatus('Saving…', 'grey');
 
@@ -410,7 +493,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(data => {
             if (!data.success) { _logStatus(data.message || 'Save failed.', 'red'); return; }
             _logStatus('Saved!', 'green');
-            _resetLogForm();
+            _resetLogForm(data.task ? !!data.task.flagged : false);
             _loadLogData(taskId);
             if (data.task) {
                 _updateTaskRowFlag(taskId, data.task.flagged, data.task.flag_tooltip);
@@ -419,20 +502,22 @@ document.addEventListener('DOMContentLoaded', function () {
             setTimeout(() => _logStatus('', ''), 3000);
         })
         .catch(() => _logStatus('Network error — please try again.', 'red'));
-    };
+    }
 
     window.deleteTaskLog = function (logId) {
         const taskId = _logCurrentTaskId;
-        if (!taskId || !confirm('Delete this log entry?')) return;
-        fetch(`/tasks/${taskId}/logs/${logId}`, {
-            method: 'DELETE',
-            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
-        })
-        .then(safeJson)
-        .then(data => {
-            if (data.success) _loadLogData(taskId);
-            else alert(data.message || 'Delete failed.');
-        });
+        if (!taskId) return;
+        showFloatingConfirm('Delete this log entry?', () => {
+            fetch(`/tasks/${taskId}/logs/${logId}`, {
+                method: 'DELETE',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
+            })
+            .then(safeJson)
+            .then(data => {
+                if (data.success) _loadLogData(taskId);
+                else showToast(data.message || 'Delete failed.');
+            });
+        }, 'Yes, delete entry');
     };
 
     // ─────────────────────────────────────────────
@@ -487,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.toggleChecklistItemJS = function (taskId, itemId, currentlyChecked, canUncheck) {
         // If already checked and user cannot uncheck — do nothing
         if (currentlyChecked && !canUncheck) {
-            alert('Only the task owner or project manager can uncheck items.');
+            showToast('Only the task owner or project manager can uncheck items.', 'info');
             // Re-check the checkbox visually
             const cb = document.getElementById('chk-' + itemId);
             if (cb) cb.checked = true;
@@ -500,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(safeJson)
         .then(data => {
             if (data.success === false) {
-                alert(data.message || 'Failed to update item.');
+                showToast(data.message || 'Failed to update item.');
                 _loadChecklistData(taskId); // reload to get true state
             } else {
                 _loadChecklistData(taskId);
@@ -510,16 +595,17 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     window.deleteChecklistItem = function (taskId, itemId) {
-        if (!confirm('Delete this checklist item?')) return;
-        fetch(`/tasks/${taskId}/checklist/${itemId}`, {
-            method: 'DELETE',
-            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
-        })
-        .then(safeJson)
-        .then(data => {
-            if (data.success !== false) _loadChecklistData(taskId);
-            else alert(data.message || 'Delete failed.');
-        });
+        showFloatingConfirm('Delete this checklist item?', () => {
+            fetch(`/tasks/${taskId}/checklist/${itemId}`, {
+                method: 'DELETE',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
+            })
+            .then(safeJson)
+            .then(data => {
+                if (data.success !== false) _loadChecklistData(taskId);
+                else showToast(data.message || 'Delete failed.');
+            });
+        }, 'Yes, delete item');
     };
 
     // Escape key closes whichever slideout is open
@@ -542,14 +628,15 @@ let _logCurrentPhases       = [];
 let _logCurrentTeam         = [];
 let _logCurrentAssigned     = null;
 
-function _resetLogForm() {
+function _resetLogForm(flagged = false) {
     ['logHours','logPercent','logCostcode','logName','logDescription'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
     const phaseEl = document.getElementById('logPhase');
     if (phaseEl) phaseEl.value = '';
-    document.getElementById('logRiskFlag').checked = false;
+    // Pre-check flag if task currently has a flag raised — user must intentionally uncheck to lower it
+    document.getElementById('logRiskFlag').checked = !!flagged;
     document.getElementById('logSaveStatus').textContent = '';
     _renderLogHourlyRate(0);
 }
@@ -679,6 +766,9 @@ function _loadLogData(taskId) {
             flagEl.classList.add('hidden');
         }
 
+        // Pre-check the flag checkbox if task currently has a flag raised
+        document.getElementById('logRiskFlag').checked = !!data.flagged;
+
         // Entry count
         document.getElementById('logEntryCount').textContent =
             data.logs.length ? data.logs.length + ' entr' + (data.logs.length === 1 ? 'y' : 'ies') : 'No entries yet';
@@ -696,6 +786,27 @@ function _loadLogData(taskId) {
 
         // Populate form helpers (idempotent — safe to call on every load)
         _renderLogPhaseSelect(_logCurrentPhases);
+
+        // Pre-fill phase and % complete from task's current state
+        if (data.task_phase !== null && data.task_phase !== undefined) {
+            const phaseEl = document.getElementById('logPhase');
+            if (phaseEl) {
+                // Find the option whose data-pct index matches task_phase integer
+                const opts = phaseEl.options;
+                for (let i = 0; i < opts.length; i++) {
+                    if (opts[i].value && _logCurrentPhases[data.task_phase] &&
+                        opts[i].value === _logCurrentPhases[data.task_phase].split('|')[1]) {
+                        phaseEl.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+        if (data.task_percent !== null && data.task_percent !== undefined) {
+            const pctEl = document.getElementById('logPercent');
+            if (pctEl) pctEl.value = data.task_percent;
+        }
+
         _renderLogHourlyRate(0);
         _renderLogAssignedList(_logCurrentTeam, _logCurrentAssigned);
 
@@ -762,6 +873,9 @@ function _renderLogHistory(logs, canViewCosts) {
                             : ''}
                         ${log.risk
                             ? `<span class="text-xs text-red-500">🚩 Flag raised</span>`
+                            : ''}
+                        ${log.assigned_name
+                            ? `<span class="text-xs text-indigo-600">👤 ${escHtml(log.assigned_name)} assigned to task</span>`
                             : ''}
                     </div>
                 </div>
@@ -897,8 +1011,8 @@ window.updateChecklistItemText = function(taskId, itemId, newText) {
         body: JSON.stringify({ item_name: newText.trim() }),
     })
     .then(safeJson)
-    .then(data => { if (data.success === false) alert(data.message || 'Update failed.'); })
-    .catch(() => alert('Network error.'));
+    .then(data => { if (data.success === false) showToast(data.message || 'Update failed.'); })
+    .catch(() => showToast('Network error.'));
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -1004,7 +1118,7 @@ function taskTeamAddMember(prefix) {
 
     // Prevent duplicate
     if (state.members.find(m => m.user_id == picker.value)) {
-        alert('This person is already in the task team.');
+        showToast('This person is already in the task team.', 'info');
         return;
     }
 

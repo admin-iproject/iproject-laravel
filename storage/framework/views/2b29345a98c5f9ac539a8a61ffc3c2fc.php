@@ -217,23 +217,91 @@ $phases        = $project->phases ?? [];
                             $flagIcon = '<svg class="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" title="' . $flagTip . '"><path d="M4 4h11l-1.5 5L15 14H4V4zm0 0v18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
                         }
 
-                        // Col 2: Hours risk clock (always shown — flag moved to name row)
-                        $hClass = riskColorClass($hoursRisk);
-                        echo '<svg class="w-3.5 h-3.5 ' . $hClass . ' flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Hours: ' . $durActual . ' / ' . $durExpected . '">';
-                        echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>';
-                        echo '</svg>';
+                        // ── Build tooltip messages ──────────────────────────────
+                        // Hours tooltip
+                        $hTipLine1 = 'Hours: ' . $durActual . ' logged / ' . $durExpected . ' expected';
+                        $hTipLine2 = match($hoursRisk) {
+                            'red'   => '⚠ Over expected hours',
+                            'amber' => $task->hours_worked > 0 && $task->percent_complete <= 0
+                                        ? '⚠ Hours logged but no progress set'
+                                        : '⚠ Hours ahead of progress',
+                            'green' => '✓ Hours on track',
+                            default => 'No expected hours set',
+                        };
+
+                        // Budget tooltip
+                        $bActual   = '$' . number_format($task->actual_budget,  0);
+                        $bTarget   = '$' . number_format($task->target_budget,  0);
+                        $bTipLine1 = 'Budget: ' . $bActual . ' spent / ' . $bTarget . ' budgeted';
+                        $bTipLine2 = match($budgetRisk) {
+                            'red'   => '⚠ Over budget',
+                            'amber' => $task->actual_budget > 0 && $task->percent_complete <= 0
+                                        ? '⚠ Spend logged but no progress set'
+                                        : '⚠ Spend ahead of progress',
+                            'green' => '✓ Budget on track',
+                            default => 'No budget set',
+                        };
+
+                        // Date tooltip
+                        $dateStart  = $task->start_date ? $task->start_date->format('m/d/y') : '—';
+                        $dateEnd    = $task->end_date   ? $task->end_date->format('m/d/y')   : '—';
+                        $dTipLine1  = 'Dates: ' . $dateStart . ' → ' . $dateEnd;
+                        if ($task->is_overdue) {
+                            $daysOver  = $task->end_date ? (int) $task->end_date->diffInDays(now()) : '?';
+                            $dTipLine2 = '⚠ OVERDUE by ' . $daysOver . ' day' . ($daysOver == 1 ? '' : 's');
+                        } elseif ($dateRisk === 'amber' && $task->start_date && $task->end_date) {
+                            $elapsed = (int) $task->start_date->diffInDays(now());
+                            $total   = (int) $task->start_date->diffInDays($task->end_date);
+                            $dTipLine2 = '⚠ ' . $elapsed . ' of ' . $total . ' days elapsed vs ' . $task->percent_complete . '% complete';
+                        } elseif ($dateRisk === 'green') {
+                            $dTipLine2 = '✓ Schedule on track';
+                        } else {
+                            $dTipLine2 = 'No due date set';
+                        }
+
+                        // ── Tooltip wrapper helper ──────────────────────────────
+                        // Renders: relative-positioned div wrapping the icon + absolutely-positioned tooltip bubble
+                        // Uses inline CSS for z-index so it floats above the grid
+                        $tip = function(string $svgPath, string $colorClass, string $line1, string $line2) {
+                            $tipBg = str_contains($line2, '⚠ OVERDUE') || str_contains($line2, '⚠ Over')
+                                ? 'bg-red-700' : (str_contains($line2, '⚠') ? 'bg-amber-600' : 'bg-gray-700');
+                            echo '<div class="relative flex items-center justify-center group/tip">';
+                            echo '<svg class="w-3.5 h-3.5 ' . $colorClass . ' flex-shrink-0 cursor-default" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                            echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="' . $svgPath . '"/>';
+                            echo '</svg>';
+                            // Tooltip bubble — hidden until group hover
+                            echo '<div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                                             opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150
+                                             ' . $tipBg . ' text-white text-xs rounded-lg py-1.5 px-2.5 whitespace-nowrap shadow-lg"
+                                       style="z-index:9999; min-width:160px;">';
+                            echo '<div class="font-medium mb-0.5">' . e($line1) . '</div>';
+                            echo '<div class="opacity-90">' . e($line2) . '</div>';
+                            // Arrow pointing down
+                            echo '<div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent ' . str_replace('bg-', 'border-t-', $tipBg) . '"></div>';
+                            echo '</div>';
+                            echo '</div>';
+                        };
+
+                        // Col 2: Hours risk clock
+                        $tip(
+                            'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+                            riskColorClass($hoursRisk),
+                            $hTipLine1, $hTipLine2
+                        );
 
                         // Col 3: Budget risk
-                        $bClass = riskColorClass($budgetRisk);
-                        echo '<svg class="w-3.5 h-3.5 ' . $bClass . ' flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Budget: $' . number_format($task->actual_budget, 0) . ' / $' . number_format($task->target_budget, 0) . '">';
-                        echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
-                        echo '</svg>';
+                        $tip(
+                            'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+                            riskColorClass($budgetRisk),
+                            $bTipLine1, $bTipLine2
+                        );
 
                         // Col 4: Date risk
-                        $dClass = riskColorClass($dateRisk);
-                        echo '<svg class="w-3.5 h-3.5 ' . $dClass . ' flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Date: ' . ($task->start_date ? $task->start_date->format('m/d') : '—') . ' → ' . ($task->end_date ? $task->end_date->format('m/d/y') : '—') . '">';
-                        echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>';
-                        echo '</svg>';
+                        $tip(
+                            'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+                            riskColorClass($dateRisk),
+                            $dTipLine1, $dTipLine2
+                        );
 
                         // Col 5: Task name + flag + milestone + priority badge
                         echo '<div class="min-w-0">';
@@ -572,7 +640,7 @@ $phases        = $project->phases ?? [];
                         <label class="block text-xs font-medium text-gray-600 mb-1">
                             Hours <span class="text-red-500">*</span>
                         </label>
-                        <input type="number" id="logHours" min="0.01" max="999" step="0.25"
+                        <input type="text" inputmode="decimal" id="logHours"
                                class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
                                placeholder="e.g. 2.5">
                     </div>
@@ -630,6 +698,21 @@ $phases        = $project->phases ?? [];
                     <div id="logAssignedList"
                          class="border border-gray-200 rounded-lg bg-white grid grid-cols-2">
                         
+                    </div>
+                </div>
+
+                
+                <div id="logConfirmBanner" class="hidden mb-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+                    <p id="logConfirmMessage" class="text-sm font-medium text-amber-900 mb-2"></p>
+                    <div class="flex gap-2">
+                        <button id="logConfirmYes"
+                                class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors">
+                            Yes, save anyway
+                        </button>
+                        <button id="logConfirmNo"
+                                class="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-lg border border-gray-300 transition-colors">
+                            Go back
+                        </button>
                     </div>
                 </div>
 

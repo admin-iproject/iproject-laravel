@@ -24,6 +24,7 @@ class TaskLog extends Model
         'task_log_name',
         'task_log_description',
         'task_log_creator',
+        'task_log_assigned',
         'task_log_hours',
         'task_log_date',
         'task_log_costcode',
@@ -38,6 +39,7 @@ class TaskLog extends Model
         'task_log_date'         => 'datetime',
         'task_log_phase'        => 'string',
         'task_log_risk'         => 'integer',
+        'task_log_assigned'     => 'integer',
         'task_percent_complete' => 'integer',
     ];
 
@@ -57,6 +59,12 @@ class TaskLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'task_log_creator');
+    }
+
+    /** The user who was assigned to the task when this log entry was saved */
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'task_log_assigned');
     }
 
     // ── Scopes ────────────────────────────────────────────────────

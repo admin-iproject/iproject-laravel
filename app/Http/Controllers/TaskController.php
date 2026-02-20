@@ -581,7 +581,7 @@ class TaskController extends Controller
         ])->values();
 
         $logs = TaskLog::where('task_log_task', $task->id)
-            ->with('creator')
+            ->with(['creator', 'assignedUser'])
             ->orderBy('task_log_date', 'desc')
             ->get()
             ->map(fn($log) => [
@@ -597,6 +597,10 @@ class TaskController extends Controller
                 'percent_complete' => $log->task_percent_complete,
                 'creator_id'       => $log->task_log_creator,
                 'creator_name'     => trim(($log->creator->first_name ?? '') . ' ' . ($log->creator->last_name ?? '')),
+                'assigned_id'      => $log->task_log_assigned,
+                'assigned_name'    => $log->task_log_assigned
+                                        ? trim(($log->assignedUser->first_name ?? '') . ' ' . ($log->assignedUser->last_name ?? ''))
+                                        : null,
                 'hourly_rate'      => $canViewCosts ? (float) ($log->creator->hourly_cost ?? 0) : null,
                 'cost'             => $canViewCosts ? $log->cost : null,
             ]);
@@ -604,17 +608,19 @@ class TaskController extends Controller
         $totalCost = $canViewCosts ? round($logs->sum('cost'), 2) : null;
 
         return response()->json([
-            'success'        => true,
-            'task_name'      => $task->name,
-            'flagged'        => (bool) $task->flagged,
-            'flag_tooltip'   => $task->flag_tooltip ?? '',
-            'can_view_costs' => $canViewCosts,
-            'my_hourly_rate' => (float) ($authUser->hourly_cost ?? 0),
-            'task_assigned'  => $task->task_assigned,
-            'task_team'      => $taskTeam,
-            'phases'         => $rawPhases,
-            'logs'           => $logs,
-            'total_cost'     => $totalCost,
+            'success'          => true,
+            'task_name'        => $task->name,
+            'flagged'          => (bool) $task->flagged,
+            'flag_tooltip'     => $task->flag_tooltip ?? '',
+            'can_view_costs'   => $canViewCosts,
+            'my_hourly_rate'   => (float) ($authUser->hourly_cost ?? 0),
+            'task_assigned'    => $task->task_assigned,
+            'task_phase'       => $task->phase,
+            'task_percent'     => $task->percent_complete,
+            'task_team'        => $taskTeam,
+            'phases'           => $rawPhases,
+            'logs'             => $logs,
+            'total_cost'       => $totalCost,
         ]);
     }
 
@@ -632,7 +638,7 @@ class TaskController extends Controller
         $validated = $request->validate([
             'task_log_name'        => 'nullable|string|max:255',
             'task_log_description' => 'nullable|string',
-            'task_log_hours'       => 'required|numeric|min:0.01|max:999',
+            'task_log_hours'       => 'required|numeric|min:0|max:999',
             'task_log_date'        => 'required|date',
             'task_log_costcode'    => 'nullable|string|max:8',
             'task_log_phase'       => 'nullable|string|max:100',
@@ -657,6 +663,7 @@ class TaskController extends Controller
                 'task_log_costcode'    => $costCode,
                 'task_log_phase'       => $validated['task_log_phase']       ?? null,
                 'task_log_risk'        => $validated['task_log_risk']        ?? 0,
+                'task_log_assigned'    => $validated['task_assigned']        ?? $task->task_assigned ?? null,
                 'task_percent_complete'=> $validated['task_percent_complete'] ?? null,
                 'task_log_from_portal' => 'Yes',
             ]);
