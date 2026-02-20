@@ -329,14 +329,19 @@ class TaskController extends Controller
     {
         try {
             $parentId = $task->parent_id;
+            $visited  = [$task->id]; // cycle guard — tracks every ID we've touched
 
             while ($parentId) {
+                // Self-reference or cycle detected — stop immediately
+                if (in_array($parentId, $visited)) break;
+
                 $parent = Task::find($parentId);
                 if (!$parent) break;
 
+                $visited[] = $parentId;
                 $parent->recalculateFromChildren();
 
-                $parentId = $parent->parent_id; // move up one level, stop when null
+                $parentId = $parent->parent_id;
             }
         } catch (\Exception $e) {
             \Log::warning('bubbleUp failed for task ' . $task->id . ': ' . $e->getMessage());
@@ -551,10 +556,29 @@ class TaskController extends Controller
 
     /**
      * Return all log entries for a task as JSON (for the log modal).
+     * Returns: logs, phase list, task team (for assigned-user radio), cost data (owner only).
      */
     public function getLogs(Task $task)
     {
         $this->authorize('view', $task);
+
+        $authUser     = auth()->user();
+        $canViewCosts = $authUser->can('viewHourlyCosts', $task);
+
+        // Parse project phases — stored as JSON array of "10|Design" strings
+        $rawPhases = $task->project->phases ?? [];
+        if (is_string($rawPhases)) {
+            $rawPhases = json_decode($rawPhases, true) ?? [];
+        }
+
+        // Build task team for the "assigned user" radio list
+        $task->loadMissing('team.user');
+        $taskTeam = $task->team->map(fn($m) => [
+            'user_id'  => $m->user_id,
+            'name'     => trim(($m->user->first_name ?? '') . ' ' . ($m->user->last_name ?? '')),
+            'initials' => strtoupper(substr($m->user->first_name ?? '?', 0, 1) . substr($m->user->last_name ?? '', 0, 1)),
+            'is_owner' => (bool) ($m->is_owner ?? false),
+        ])->values();
 
         $logs = TaskLog::where('task_log_task', $task->id)
             ->with('creator')
@@ -573,22 +597,33 @@ class TaskController extends Controller
                 'percent_complete' => $log->task_percent_complete,
                 'creator_id'       => $log->task_log_creator,
                 'creator_name'     => trim(($log->creator->first_name ?? '') . ' ' . ($log->creator->last_name ?? '')),
-                'cost'             => $log->cost,
+                'hourly_rate'      => $canViewCosts ? (float) ($log->creator->hourly_cost ?? 0) : null,
+                'cost'             => $canViewCosts ? $log->cost : null,
             ]);
 
+        $totalCost = $canViewCosts ? round($logs->sum('cost'), 2) : null;
+
         return response()->json([
-            'success'      => true,
-            'task_name'    => $task->name,
-            'flagged'      => (bool) $task->flagged,
-            'flag_tooltip' => $task->flag_tooltip ?? '',
-            'logs'         => $logs,
+            'success'        => true,
+            'task_name'      => $task->name,
+            'flagged'        => (bool) $task->flagged,
+            'flag_tooltip'   => $task->flag_tooltip ?? '',
+            'can_view_costs' => $canViewCosts,
+            'my_hourly_rate' => (float) ($authUser->hourly_cost ?? 0),
+            'task_assigned'  => $task->task_assigned,
+            'task_team'      => $taskTeam,
+            'phases'         => $rawPhases,
+            'logs'           => $logs,
+            'total_cost'     => $totalCost,
         ]);
     }
 
     /**
      * Store a new task log entry.
-     * After saving, update task percent_complete (MAX of all log entries)
-     * and trigger bubbleUp to propagate hours/budget to parents.
+     * - Saves phase name as string (e.g. "Design")
+     * - Updates task_assigned if provided ("pass the ball")
+     * - Updates percent_complete from most recent log entry
+     * - Triggers bubbleUp for hours/budget rollup
      */
     public function logTime(Request $request, Task $task)
     {
@@ -600,62 +635,84 @@ class TaskController extends Controller
             'task_log_hours'       => 'required|numeric|min:0.01|max:999',
             'task_log_date'        => 'required|date',
             'task_log_costcode'    => 'nullable|string|max:8',
-            'task_log_phase'       => 'nullable|integer',
+            'task_log_phase'       => 'nullable|string|max:100',
             'task_log_risk'        => 'nullable|boolean',
             'task_percent_complete'=> 'nullable|integer|min:0|max:100',
+            'task_assigned'        => 'nullable|integer|exists:users,id',
         ]);
 
         DB::beginTransaction();
         try {
-            // Default cost code from user profile if blank
             $costCode = $validated['task_log_costcode']
                 ?? auth()->user()->cost_code
                 ?? null;
 
             $log = TaskLog::create([
                 'task_log_task'        => $task->id,
-                'task_log_name'        => $validated['task_log_name'] ?? null,
+                'task_log_name'        => $validated['task_log_name']        ?? null,
                 'task_log_description' => $validated['task_log_description'] ?? null,
                 'task_log_creator'     => auth()->id(),
                 'task_log_hours'       => $validated['task_log_hours'],
                 'task_log_date'        => $validated['task_log_date'],
                 'task_log_costcode'    => $costCode,
-                'task_log_phase'       => $validated['task_log_phase'] ?? $task->phase ?? 0,
-                'task_log_risk'        => $validated['task_log_risk'] ?? 0,
+                'task_log_phase'       => $validated['task_log_phase']       ?? null,
+                'task_log_risk'        => $validated['task_log_risk']        ?? 0,
                 'task_percent_complete'=> $validated['task_percent_complete'] ?? null,
                 'task_log_from_portal' => 'Yes',
             ]);
 
-            // Update task flag state — most recent log entry drives it
+            // "Pass the ball" — update who is currently working on this task
+            if (!empty($validated['task_assigned'])) {
+                $task->task_assigned = $validated['task_assigned'];
+            }
+
+            // Sync task.phase from the log's phase name — find the integer index
+            // in the project phases array e.g. ["10|Design","25|Develop"] → "Design" = index 0
+            if (!empty($validated['task_log_phase'])) {
+                $rawPhases = $task->project->phases ?? [];
+                if (is_string($rawPhases)) {
+                    $rawPhases = json_decode($rawPhases, true) ?? [];
+                }
+                foreach ($rawPhases as $index => $entry) {
+                    $parts = explode('|', $entry, 2);
+                    if (count($parts) === 2 && trim($parts[1]) === trim($validated['task_log_phase'])) {
+                        $task->phase = $index;
+                        break;
+                    }
+                }
+            }
+
+            // Flag state — driven by this log entry
             $raised = !empty($validated['task_log_risk']);
             $task->flagged    = $raised;
             $task->flagged_by = $raised ? auth()->id() : null;
             $task->flagged_at = $raised ? now()        : null;
 
-            // Update task percent_complete to MAX reported across all log entries
-            $maxPct = TaskLog::where('task_log_task', $task->id)
-                ->whereNotNull('task_percent_complete')
-                ->max('task_percent_complete');
-
-            if ($maxPct !== null) {
-                $task->percent_complete = $maxPct;
-
-                // Auto-set end_date when hitting 100% and no end date exists
-                if ($maxPct >= 100 && !$task->end_date) {
+            // percent_complete = value from the most recent log entry
+            if ($validated['task_percent_complete'] !== null) {
+                $task->percent_complete = $validated['task_percent_complete'];
+                if ($validated['task_percent_complete'] >= 100 && !$task->end_date) {
                     $task->end_date = $validated['task_log_date'];
                 }
             }
 
-            // Update total hours_worked on the task from sum of all logs
+            // Sum all hours including the new entry
             $totalHours = TaskLog::where('task_log_task', $task->id)->sum('task_log_hours');
-            $task->hours_worked = $totalHours;
+            $task->hours_worked    = $totalHours;
             $task->task_lastupdate = $validated['task_log_date'];
+
+            // Compute actual_budget = sum of (hours × creator's hourly_cost) across all logs
+            $task->actual_budget = (float) DB::table('task_log')
+                ->join('users', 'task_log.task_log_creator', '=', 'users.id')
+                ->where('task_log.task_log_task', $task->id)
+                ->sum(DB::raw('task_log.task_log_hours * users.hourly_cost'));
+
             $task->saveQuietly();
 
             DB::commit();
 
-            // Bubble up hours + budget to all ancestors
-            $this->bubbleUp($task);
+            // bubbleUp suspended — re-enable once all CRUD modules are stable
+            // $this->bubbleUp($task);
 
             return response()->json([
                 'success' => true,
@@ -665,11 +722,12 @@ class TaskController extends Controller
                     'hours' => $log->task_log_hours,
                     'date'  => $log->task_log_date?->format('M d, Y'),
                 ],
-                'task' => [
-                    'hours_worked'      => $task->fresh()->hours_worked,
-                    'percent_complete'  => $task->fresh()->percent_complete,
-                    'flagged'           => (bool) $task->fresh()->flagged,
-                    'flag_tooltip'      => $task->fresh()->flag_tooltip,
+                'task'    => [
+                    'hours_worked'     => $task->hours_worked,
+                    'percent_complete' => $task->percent_complete,
+                    'flagged'          => (bool) $task->flagged,
+                    'flag_tooltip'     => $task->flag_tooltip,
+                    'task_assigned'    => $task->task_assigned,
                 ],
             ]);
 
@@ -698,19 +756,27 @@ class TaskController extends Controller
         try {
             $log->delete();
 
-            // Recalculate hours_worked and percent_complete from remaining logs
+            // Recalculate hours_worked, actual_budget, and percent_complete from remaining logs
             $totalHours = TaskLog::where('task_log_task', $task->id)->sum('task_log_hours');
             $maxPct     = TaskLog::where('task_log_task', $task->id)
                 ->whereNotNull('task_percent_complete')
                 ->max('task_percent_complete') ?? $task->percent_complete;
 
-            $task->hours_worked     = $totalHours;
+            $task->hours_worked   = $totalHours;
             $task->percent_complete = $maxPct;
+
+            // Recompute actual_budget from remaining logs × creator rates
+            $task->actual_budget = (float) DB::table('task_log')
+                ->join('users', 'task_log.task_log_creator', '=', 'users.id')
+                ->where('task_log.task_log_task', $task->id)
+                ->sum(DB::raw('task_log.task_log_hours * users.hourly_cost'));
+
             $task->saveQuietly();
 
             DB::commit();
 
-            $this->bubbleUp($task);
+            // bubbleUp suspended — re-enable once all CRUD modules are stable
+            // $this->bubbleUp($task);
 
             return response()->json(['success' => true, 'message' => 'Log entry deleted.']);
 

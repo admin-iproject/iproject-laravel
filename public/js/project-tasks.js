@@ -43,6 +43,17 @@ document.addEventListener('DOMContentLoaded', function () {
         createModal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
         taskTeamInit('create');
+
+        // Wire start date → end date min constraint
+        const createStart = createForm.querySelector('[name="start_date"]');
+        const createEnd   = createForm.querySelector('[name="end_date"]');
+        if (createStart && createEnd) {
+            createStart.addEventListener('change', function () {
+                createEnd.min = this.value || '';
+                // Clear end date if it's now before start
+                if (createEnd.value && createEnd.value < this.value) createEnd.value = '';
+            });
+        }
     }
 
     function closeCreateModal() {
@@ -105,7 +116,8 @@ document.addEventListener('DOMContentLoaded', function () {
             status:             parseInt(fd.get('status')),
             priority:           parseInt(fd.get('priority')),
             percent_complete:   parseInt(fd.get('percent_complete')),
-            target_budget:      fd.get('target_budget')     ? parseFloat(fd.get('target_budget')) : null,
+            target_budget:      fd.get('target_budget')     ? parseFloat(fd.get('target_budget')) : 0,
+            actual_budget:      0,
             cost_code:          fd.get('cost_code')         || null,
             phase:              fd.get('phase') !== ''      ? parseInt(fd.get('phase')) : null,
             related_url:        fd.get('related_url')       || null,
@@ -189,6 +201,21 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('editTaskDescription').value = task.description    ?? '';
         document.getElementById('editStartDate').value       = task.start_date     ?? '';
         document.getElementById('editEndDate').value         = task.end_date       ?? '';
+
+        // Wire start date → end date min constraint for edit modal
+        const editStart = document.getElementById('editStartDate');
+        const editEnd   = document.getElementById('editEndDate');
+        if (editStart && editEnd) {
+            // Set initial min from loaded start date
+            if (task.start_date) editEnd.min = task.start_date;
+            // Re-wire (remove old listener by replacing with fresh one via cloneNode trick)
+            const newStart = editStart.cloneNode(true);
+            editStart.parentNode.replaceChild(newStart, editStart);
+            newStart.addEventListener('change', function () {
+                editEnd.min = this.value || '';
+                if (editEnd.value && editEnd.value < this.value) editEnd.value = '';
+            });
+        }
         document.getElementById('editDuration').value        = task.duration       ?? '';
         document.getElementById('editCostCode').value        = task.cost_code      ?? '';
         document.getElementById('editRelatedUrl').value      = task.related_url    ?? '';
@@ -273,7 +300,8 @@ document.addEventListener('DOMContentLoaded', function () {
             status:             parseInt(document.getElementById('editStatus').value),
             priority:           parseInt(document.getElementById('editPriority').value),
             percent_complete:   parseInt(document.getElementById('editPercentComplete').value),
-            target_budget:      document.getElementById('editTargetBudget').value           ? parseFloat(document.getElementById('editTargetBudget').value) : null,
+            target_budget:      document.getElementById('editTargetBudget').value           ? parseFloat(document.getElementById('editTargetBudget').value) : 0,
+            actual_budget:      0,
             cost_code:          document.getElementById('editCostCode').value               || null,
             phase:              document.getElementById('editPhase').value !== ''           ? parseInt(document.getElementById('editPhase').value) : null,
             related_url:        document.getElementById('editRelatedUrl').value             || null,
@@ -345,6 +373,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const body    = document.getElementById('logFormBody');
         const chevron = document.getElementById('logFormChevron');
         const hidden  = body.classList.toggle('hidden');
+        // Form starts collapsed (hidden), chevron points down when collapsed, up when open
         chevron.style.transform = hidden ? 'rotate(0deg)' : 'rotate(180deg)';
     };
 
@@ -367,9 +396,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 task_log_name:         document.getElementById('logName').value        || null,
                 task_log_description:  document.getElementById('logDescription').value || null,
                 task_log_costcode:     document.getElementById('logCostcode').value    || null,
+                task_log_phase:        document.getElementById('logPhase').value       || null,
                 task_percent_complete: document.getElementById('logPercent').value
                                        ? parseInt(document.getElementById('logPercent').value) : null,
                 task_log_risk:         document.getElementById('logRiskFlag').checked ? 1 : 0,
+                task_assigned:         (() => {
+                    const r = document.querySelector('input[name="logAssignedUser"]:checked');
+                    return r ? parseInt(r.value) : null;
+                })(),
             }),
         })
         .then(safeJson)
@@ -502,19 +536,109 @@ document.addEventListener('DOMContentLoaded', function () {
 // ════════════════════════════════════════════════════════════════
 let _logCurrentTaskId       = null;
 let _checklistCurrentTaskId = null;
+let _logCanViewCosts        = false;
+let _logMyHourlyRate        = 0;
+let _logCurrentPhases       = [];
+let _logCurrentTeam         = [];
+let _logCurrentAssigned     = null;
 
 function _resetLogForm() {
     ['logHours','logPercent','logCostcode','logName','logDescription'].forEach(id => {
-        document.getElementById(id).value = '';
+        const el = document.getElementById(id);
+        if (el) el.value = '';
     });
+    const phaseEl = document.getElementById('logPhase');
+    if (phaseEl) phaseEl.value = '';
     document.getElementById('logRiskFlag').checked = false;
     document.getElementById('logSaveStatus').textContent = '';
+    _renderLogHourlyRate(0);
 }
 
 function _logStatus(msg, color) {
     const el = document.getElementById('logSaveStatus');
     el.textContent = msg;
     el.className = 'text-xs ' + ({ red: 'text-red-500', green: 'text-green-600', grey: 'text-gray-400' }[color] || '');
+}
+
+/**
+ * Populate the Phase <select> from raw phases array ["10|Design", "25|Develop", ...]
+ * Selecting a phase auto-fills % complete (user can still override).
+ */
+function _renderLogPhaseSelect(phases) {
+    const sel = document.getElementById('logPhase');
+    if (!sel) return;
+    // Preserve current value if already set
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— Phase —</option>';
+    (phases || []).forEach(entry => {
+        const parts = entry.split('|');
+        if (parts.length !== 2) return;
+        const pct  = parseInt(parts[0]);
+        const name = parts[1];
+        const opt  = document.createElement('option');
+        opt.value       = name;
+        opt.dataset.pct = pct;
+        opt.textContent = name + ' (' + pct + '%)';
+        sel.appendChild(opt);
+    });
+    if (current) sel.value = current;
+
+    sel.onchange = function () {
+        const selected = sel.options[sel.selectedIndex];
+        const pctEl    = document.getElementById('logPercent');
+        if (selected && selected.dataset.pct !== undefined && pctEl) {
+            pctEl.value = selected.dataset.pct;
+        }
+    };
+}
+
+/**
+ * Show "Your rate: $X.XX/hr · Est. cost: $Y.YY" below the 4-col row.
+ * Only shows est. cost if user can view costs AND hours > 0.
+ */
+function _renderLogHourlyRate(hours) {
+    const el = document.getElementById('logHourlyRateDisplay');
+    if (!el) return;
+    if (!_logMyHourlyRate || _logMyHourlyRate <= 0) { el.classList.add('hidden'); return; }
+    const rate = _logMyHourlyRate;
+    let text = 'Your rate: $' + rate.toFixed(2) + '/hr';
+    if (hours > 0) {
+        text += '  ·  Est. cost: $' + (rate * hours).toFixed(2);
+    }
+    el.textContent = text;
+    el.classList.remove('hidden');
+}
+
+/**
+ * Render assigned-user radio list in 2-column grid.
+ * Currently assigned user gets amber highlight.
+ */
+function _renderLogAssignedList(team, currentAssignedId) {
+    const section = document.getElementById('logAssignedSection');
+    const list    = document.getElementById('logAssignedList');
+    if (!section || !list) return;
+
+    if (!team || team.length === 0) { section.classList.add('hidden'); return; }
+
+    section.classList.remove('hidden');
+    // 2-column grid — each item is a label with radio + avatar + name
+    list.innerHTML = team.map(m => {
+        const isAssigned = m.user_id == currentAssignedId;
+        return `
+        <label class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-amber-50 transition-colors
+                      ${isAssigned ? 'bg-amber-50' : ''}">
+            <input type="radio" name="logAssignedUser" value="${m.user_id}"
+                   ${isAssigned ? 'checked' : ''}
+                   class="w-3.5 h-3.5 text-amber-500 border-gray-300 focus:ring-amber-400 flex-shrink-0">
+            <span class="w-6 h-6 rounded-full ${isAssigned ? 'bg-amber-400 text-white' : 'bg-gray-200 text-gray-600'}
+                         flex items-center justify-center text-xs font-bold flex-shrink-0">
+                ${escHtml(m.initials)}
+            </span>
+            <span class="text-xs ${isAssigned ? 'font-semibold text-amber-800' : 'text-gray-700'} truncate">
+                ${escHtml(m.name)}${m.is_owner ? ' <span class="text-amber-400">★</span>' : ''}
+            </span>
+        </label>`;
+    }).join('');
 }
 
 function _loadLogData(taskId) {
@@ -527,6 +651,13 @@ function _loadLogData(taskId) {
     .then(safeJson)
     .then(data => {
         if (!data.success) return;
+
+        // Store context for form helpers
+        _logCanViewCosts    = !!data.can_view_costs;
+        _logMyHourlyRate    = data.my_hourly_rate || 0;
+        _logCurrentPhases   = data.phases || [];
+        _logCurrentTeam     = data.task_team || [];
+        _logCurrentAssigned = data.task_assigned || null;
 
         // Header
         if (data.task_name) {
@@ -552,7 +683,29 @@ function _loadLogData(taskId) {
         document.getElementById('logEntryCount').textContent =
             data.logs.length ? data.logs.length + ' entr' + (data.logs.length === 1 ? 'y' : 'ies') : 'No entries yet';
 
-        _renderLogHistory(data.logs);
+        // Total cost footer (owner only)
+        const costEl = document.getElementById('logTotalCost');
+        if (costEl) {
+            if (_logCanViewCosts && data.total_cost > 0) {
+                costEl.textContent = 'Total cost: $' + data.total_cost.toFixed(2);
+                costEl.classList.remove('hidden');
+            } else {
+                costEl.classList.add('hidden');
+            }
+        }
+
+        // Populate form helpers (idempotent — safe to call on every load)
+        _renderLogPhaseSelect(_logCurrentPhases);
+        _renderLogHourlyRate(0);
+        _renderLogAssignedList(_logCurrentTeam, _logCurrentAssigned);
+
+        // Wire hours input for live cost estimate
+        const hoursEl = document.getElementById('logHours');
+        if (hoursEl) {
+            hoursEl.oninput = () => _renderLogHourlyRate(parseFloat(hoursEl.value) || 0);
+        }
+
+        _renderLogHistory(data.logs, _logCanViewCosts);
     })
     .catch(() => {
         document.getElementById('logHistoryList').innerHTML =
@@ -560,14 +713,27 @@ function _loadLogData(taskId) {
     });
 }
 
-function _renderLogHistory(logs) {
+function _renderLogHistory(logs, canViewCosts) {
     const container = document.getElementById('logHistoryList');
     if (!logs || logs.length === 0) {
         container.innerHTML = '<div class="px-5 py-8 text-center text-xs text-gray-400">No time logged yet.</div>';
         return;
     }
 
-    container.innerHTML = logs.map(log => `
+    container.innerHTML = logs.map(log => {
+        // Cost badge: hours × rate, with rate shown — only for project owner
+        const costBadge = (canViewCosts && log.cost > 0)
+            ? `<span class="text-xs font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded">
+                   $${log.cost.toFixed(2)}
+                   ${log.hourly_rate > 0 ? '<span class="font-normal text-green-500">@ $' + log.hourly_rate.toFixed(2) + '/hr</span>' : ''}
+               </span>`
+            : '';
+
+        const phaseBadge = log.phase
+            ? `<span class="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">${escHtml(log.phase)}</span>`
+            : '';
+
+        return `
         <div class="px-5 py-4 hover:bg-gray-50 transition-colors" id="log-row-${log.id}">
             <div class="flex items-start gap-3">
                 <div class="flex-shrink-0 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 text-center min-w-[56px]">
@@ -576,7 +742,9 @@ function _renderLogHistory(logs) {
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-start justify-between gap-2 mb-1">
-                        <span class="text-sm font-medium text-gray-800">${log.name ? escHtml(log.name) : '<span class="text-gray-400 font-normal italic">No summary</span>'}</span>
+                        <span class="text-sm font-medium text-gray-800">${log.name
+                            ? escHtml(log.name)
+                            : '<span class="text-gray-400 font-normal italic">No summary</span>'}</span>
                         <span class="text-xs text-gray-400 flex-shrink-0">${log.date_formatted}</span>
                     </div>
                     ${log.description
@@ -584,17 +752,16 @@ function _renderLogHistory(logs) {
                         : ''}
                     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                         <span class="text-xs text-gray-500 font-medium">${escHtml(log.creator_name)}</span>
+                        ${phaseBadge}
                         ${log.percent_complete !== null
                             ? `<span class="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">${log.percent_complete}% complete</span>`
                             : ''}
+                        ${costBadge}
                         ${log.costcode
                             ? `<span class="text-xs text-gray-400 font-mono">${escHtml(log.costcode)}</span>`
                             : ''}
-                        ${log.cost > 0
-                            ? `<span class="text-xs text-gray-500">$${log.cost.toFixed(2)}</span>`
-                            : ''}
                         ${log.risk
-                            ? `<span class="text-xs text-red-500 flex items-center gap-0.5">🚩 Flag raised</span>`
+                            ? `<span class="text-xs text-red-500">🚩 Flag raised</span>`
                             : ''}
                     </div>
                 </div>
@@ -605,10 +772,9 @@ function _renderLogHistory(logs) {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                     </svg>
                 </button>
-
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -921,10 +1087,12 @@ function taskTeamRender(prefix) {
             <td class="py-2 text-right w-28">
                 ${isSplit
                     ? `<span class="text-sm text-gray-600">${splitHoursEach.toFixed(1)}h</span>`
-                    : `<input type="number" step="0.5" min="0" value="${m.hours}"
+                    : `<input type="text" inputmode="decimal"
+                            value="${m.hours > 0 ? m.hours : ''}"
+                            placeholder="0"
                             class="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-amber-400"
-                            onchange="_taskTeamSetHours('${prefix}', ${idx}, this.value)"
-                            oninput="_taskTeamSetHours('${prefix}', ${idx}, this.value)">`
+                            oninput="_taskTeamUpdateHoursState('${prefix}', ${idx}, this.value)"
+                            onchange="_taskTeamSetHours('${prefix}', ${idx}, this.value)">`
                 }
             </td>
             <td class="py-2 text-right w-28 text-sm text-gray-500">
@@ -953,6 +1121,17 @@ function _taskTeamSetHours(prefix, idx, val) {
     if (!state || !state.members[idx]) return;
     state.members[idx].hours = parseFloat(val) || 0;
     taskTeamRender(prefix);
+}
+
+/** Updates state only — no re-render — so typing in the hours field doesn't destroy focus */
+function _taskTeamUpdateHoursState(prefix, idx, val) {
+    const state = _taskTeamState[prefix];
+    if (!state || !state.members[idx]) return;
+    state.members[idx].hours = parseFloat(val) || 0;
+    // Only update the budget totals display, not the whole table
+    const totalCost  = state.members.reduce((s, m) => s + (m.hours * m.hourly_cost), 0);
+    const totalHours = state.members.reduce((s, m) => s + m.hours, 0);
+    taskTeamUpdateBudget(prefix, totalCost, totalHours);
 }
 
 function taskTeamUpdateBudget(prefix, cost, hours) {

@@ -106,6 +106,10 @@ class StoreTaskRequest extends FormRequest
         if (!$this->has('task_ignore_budget')) $defaults['task_ignore_budget'] = 0;
         if (!$this->has('milestone'))          $defaults['milestone']          = 0;
 
+        // Ensure budget columns are never null — DB has NOT NULL constraint
+        if (!$this->filled('target_budget')) $defaults['target_budget'] = 0;
+        if (!$this->filled('actual_budget')) $defaults['actual_budget'] = 0;
+
         if (!empty($defaults)) $this->merge($defaults);
 
         $this->merge(['creator_id' => auth()->id()]);

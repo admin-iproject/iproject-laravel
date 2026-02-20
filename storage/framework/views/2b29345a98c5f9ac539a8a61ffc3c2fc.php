@@ -433,23 +433,27 @@ $phases        = $project->phases ?? [];
                         echo '<div class="flex-shrink-0 w-40">';
                         echo '<p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Task Team</p>';
                         echo '<div class="space-y-1">';
-                        $taskTeam = $task->team ?? collect();
+                        $taskTeam       = $task->team ?? collect();
+                        $taskAssignedId = $task->task_assigned;
                         if ($taskTeam->isEmpty()) {
                             echo '<span class="text-xs text-gray-400">No members assigned</span>';
                         } else {
                             foreach ($taskTeam as $member) {
-                                $mFirst   = $member->user->first_name ?? '';
-                                $mLast    = $member->user->last_name  ?? '';
-                                $mName    = trim($mFirst . ' ' . $mLast);
-                                $isOwner  = (bool)($member->is_owner ?? false);
-                                $nameCls  = $isOwner ? 'font-semibold text-gray-900' : 'text-gray-700';
-                                $initials = strtoupper(substr($mFirst, 0, 1) . substr($mLast, 0, 1));
-                                $avatarBg = $isOwner ? 'bg-amber-400 text-white' : 'bg-gray-200 text-gray-600';
-                                $hours    = $member->hours > 0 ? number_format($member->hours, 1) . 'h' : null;
+                                $mFirst      = $member->user->first_name ?? '';
+                                $mLast       = $member->user->last_name  ?? '';
+                                $mName       = trim($mFirst . ' ' . $mLast);
+                                $isOwner     = (bool)($member->is_owner ?? false);
+                                $isAssigned  = $taskAssignedId && $member->user_id == $taskAssignedId;
+                                $initials    = strtoupper(substr($mFirst, 0, 1) . substr($mLast, 0, 1));
+                                // Amber highlight = currently assigned (working now); owner gets ★ label only
+                                $avatarBg    = $isAssigned ? 'bg-amber-400 text-white' : 'bg-gray-200 text-gray-600';
+                                $nameCls     = $isAssigned ? 'font-semibold text-gray-900' : 'text-gray-700';
+                                $hours       = $member->hours > 0 ? number_format($member->hours, 1) . 'h' : null;
+                                $suffix      = $isOwner ? ' ★' : '';
                                 echo '<div class="flex items-center gap-1.5 mb-1">';
                                 echo '<span class="w-6 h-6 rounded-full ' . $avatarBg . ' flex items-center justify-center text-xs font-bold flex-shrink-0">' . e($initials) . '</span>';
                                 echo '<div class="min-w-0">';
-                                echo '<div class="text-xs ' . $nameCls . ' truncate">' . e($mName) . ($isOwner ? ' ★' : '') . '</div>';
+                                echo '<div class="text-xs ' . $nameCls . ' truncate">' . e($mName) . $suffix . '</div>';
                                 if ($hours) echo '<div class="text-xs text-gray-400">' . $hours . '</div>';
                                 echo '</div>';
                                 echo '</div>';
@@ -553,21 +557,23 @@ $phases        = $project->phases ?? [];
                     onclick="toggleLogForm()"
                     class="w-full flex items-center justify-between px-5 py-3 bg-amber-50 hover:bg-amber-100 transition-colors text-left">
                 <span class="text-sm font-medium text-amber-800">+ New Log Entry</span>
-                <svg id="logFormChevron" class="w-4 h-4 text-amber-600 transition-transform rotate-180"
+                <svg id="logFormChevron" class="w-4 h-4 text-amber-600 transition-transform"
                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
             </button>
 
             
-            <div id="logFormBody" class="px-5 py-4 bg-amber-50/30">
-                <div class="grid grid-cols-2 gap-3 mb-3">
+            <div id="logFormBody" class="hidden px-5 py-4 bg-amber-50/30">
+
+                
+                <div class="grid grid-cols-4 gap-2 mb-1">
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">
                             Hours <span class="text-red-500">*</span>
                         </label>
                         <input type="number" id="logHours" min="0.01" max="999" step="0.25"
-                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                               class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
                                placeholder="e.g. 2.5">
                     </div>
                     <div>
@@ -575,32 +581,42 @@ $phases        = $project->phases ?? [];
                             Date <span class="text-red-500">*</span>
                         </label>
                         <input type="date" id="logDate"
-                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400">
+                               class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400">
                     </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Phase</label>
+                        <select id="logPhase"
+                                class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                            <option value="">— Phase —</option>
+                        </select>
+                    </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">% Complete</label>
                         <input type="number" id="logPercent" min="0" max="100" step="5"
-                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                               class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
                                placeholder="0–100">
                     </div>
-                    <div>
+                </div>
+                
+                <div id="logHourlyRateDisplay" class="hidden mb-3 text-xs text-gray-400"></div>
+
+                
+                <div class="flex gap-2 mb-3">
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Summary</label>
+                        <input type="text" id="logName" maxlength="255"
+                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                               placeholder="Brief description of work done">
+                    </div>
+                    <div style="width:80px;flex-shrink:0;">
                         <label class="block text-xs font-medium text-gray-600 mb-1">Cost Code</label>
                         <input type="text" id="logCostcode" maxlength="8"
-                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-                               placeholder="Optional">
+                               class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                               placeholder="Code">
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Summary</label>
-                    <input type="text" id="logName" maxlength="255"
-                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-                           placeholder="Brief description of work done">
-                </div>
-
+                
                 <div class="mb-3">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Notes</label>
                     <textarea id="logDescription" rows="2"
@@ -609,21 +625,30 @@ $phases        = $project->phases ?? [];
                 </div>
 
                 
-                <label class="flex items-center gap-2 mb-4 p-2.5 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-red-50 transition-colors">
-                    <input type="checkbox" id="logRiskFlag"
-                           class="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-400">
-                    <span class="text-base leading-none">🚩</span>
-                    <span class="text-sm font-medium text-gray-700">Raise a red flag</span>
-                    <span class="text-xs text-gray-400 ml-auto">alerts team this needs attention</span>
-                </label>
+                <div id="logAssignedSection" class="hidden mb-3">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Currently Working On This Task</label>
+                    <div id="logAssignedList"
+                         class="border border-gray-200 rounded-lg bg-white grid grid-cols-2">
+                        
+                    </div>
+                </div>
 
+                
                 <div class="flex items-center gap-3">
+                    <label class="flex flex-1 items-center gap-2 p-2.5 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-red-50 transition-colors">
+                        <input type="checkbox" id="logRiskFlag"
+                               class="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-400">
+                        <span class="text-base leading-none">🚩</span>
+                        <span class="text-sm font-medium text-gray-700">Raise a red flag</span>
+                        <span class="text-xs text-gray-400 ml-auto hidden sm:inline">alerts team</span>
+                    </label>
                     <button onclick="submitTaskLog()"
-                            class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors">
+                            class="flex-shrink-0 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap">
                         Save Log Entry
                     </button>
-                    <span id="logSaveStatus" class="text-xs"></span>
+                    <span id="logSaveStatus" class="text-xs flex-shrink-0"></span>
                 </div>
+
             </div>
         </div>
 
@@ -631,7 +656,11 @@ $phases        = $project->phases ?? [];
         <div class="flex-1 overflow-y-auto">
             <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
                 <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">History</span>
-                <span id="logEntryCount" class="text-xs text-gray-400"></span>
+                <div class="flex items-center gap-4">
+                    
+                    <span id="logTotalCost" class="hidden text-xs font-semibold text-gray-600"></span>
+                    <span id="logEntryCount" class="text-xs text-gray-400"></span>
+                </div>
             </div>
             <div id="logHistoryList" class="divide-y divide-gray-100">
                 <div class="px-5 py-8 text-center text-xs text-gray-400">Loading…</div>

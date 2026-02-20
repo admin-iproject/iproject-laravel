@@ -10,6 +10,15 @@ class TaskLog extends Model
     protected $table = 'task_log';
     protected $primaryKey = 'task_log_id';
 
+    /**
+     * Route model binding key — fixes {log} binding in deleteLog route.
+     * Without this Laravel looks for 'id' column which doesn't exist → hang.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'task_log_id';
+    }
+
     protected $fillable = [
         'task_log_task',
         'task_log_name',
@@ -27,7 +36,7 @@ class TaskLog extends Model
     protected $casts = [
         'task_log_hours'        => 'float',
         'task_log_date'         => 'datetime',
-        'task_log_phase'        => 'integer',
+        'task_log_phase'        => 'string',
         'task_log_risk'         => 'integer',
         'task_percent_complete' => 'integer',
     ];
