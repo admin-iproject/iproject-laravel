@@ -331,6 +331,16 @@
     background-color: var(--color-gray-200);
 }
 
+/* Nudge content area to visually center between sidebar and right tabs */
+.main-content > header {
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.main-content > main {
+    padding-top: 12px;
+}
+
 body:not(:has(.left-sidebar.collapsed)) .main-content,
 .left-sidebar:not(.collapsed) ~ .main-content {
     margin-left: var(--sidebar-width);

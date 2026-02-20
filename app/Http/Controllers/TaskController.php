@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
+use App\Models\TaskLog;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\Contact;
@@ -87,14 +88,8 @@ class TaskController extends Controller
 
             DB::commit();
 
-            // Calculate target budget after commit — wrapped so it never kills the save
-            try {
-                if (method_exists($task, 'updateTargetBudget')) {
-                    $task->updateTargetBudget();
-                }
-            } catch (\Exception $budgetEx) {
-                \Log::warning('Budget recalc failed for task ' . $task->id . ': ' . $budgetEx->getMessage());
-            }
+            // Walk up parent chain recalculating rollups — never touches siblings
+            $this->bubbleUp($task);
 
             if ($request->expectsJson() || $request->wantsJson()) {
                 return response()->json([
@@ -249,22 +244,8 @@ class TaskController extends Controller
 
             DB::commit();
 
-            // Recalculate budgets AFTER commit — wrapped so a budget error never kills the save
-            try {
-                $task->refresh();
-                if (method_exists($task, 'updateTargetBudget')) {
-                    $task->updateTargetBudget();
-                }
-                if ($task->parent && method_exists($task->parent, 'updateTargetBudget')) {
-                    $task->parent->updateTargetBudget();
-                }
-                if ($task->parent && method_exists($task->parent, 'updateActualBudget')) {
-                    $task->parent->updateActualBudget();
-                }
-            } catch (\Exception $budgetEx) {
-                // Budget recalc failed — log it but don't fail the save
-                \Log::warning('Budget recalc failed for task ' . $task->id . ': ' . $budgetEx->getMessage());
-            }
+            // Walk up parent chain recalculating rollups — never touches siblings
+            $this->bubbleUp($task);
 
             if ($request->expectsJson() || $request->wantsJson()) {
                 return response()->json([
@@ -306,12 +287,12 @@ class TaskController extends Controller
         try {
             $task->delete();
 
-            if ($parent) {
-                if (method_exists($parent, 'updateTargetBudget')) $parent->updateTargetBudget();
-                if (method_exists($parent, 'updateActualBudget')) $parent->updateActualBudget();
-            }
-
             DB::commit();
+
+            // Bubble up from deleted task's parent
+            if ($parent) {
+                $this->bubbleUp($parent);
+            }
 
             if ($request->expectsJson() || $request->wantsJson()) {
                 return response()->json([
@@ -335,6 +316,30 @@ class TaskController extends Controller
             }
 
             return back()->with('error', 'Failed to delete task: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Walk UP the parent chain from the saved task, recalculating each ancestor
+     * from its direct children only. Never looks down more than one level.
+     * Max iterations = tree depth (typically 3-5 levels).
+     * Zero impact on sibling tasks — only direct ancestors are touched.
+     */
+    private function bubbleUp(Task $task): void
+    {
+        try {
+            $parentId = $task->parent_id;
+
+            while ($parentId) {
+                $parent = Task::find($parentId);
+                if (!$parent) break;
+
+                $parent->recalculateFromChildren();
+
+                $parentId = $parent->parent_id; // move up one level, stop when null
+            }
+        } catch (\Exception $e) {
+            \Log::warning('bubbleUp failed for task ' . $task->id . ': ' . $e->getMessage());
         }
     }
 
@@ -408,8 +413,9 @@ class TaskController extends Controller
         DB::beginTransaction();
         try {
             $this->syncTaskTeam($task, $request);
-            if (method_exists($task, 'updateTargetBudget')) $task->updateTargetBudget();
             DB::commit();
+
+            $this->bubbleUp($task);
 
             return back()->with('success', 'Task team updated successfully.');
 
@@ -421,19 +427,64 @@ class TaskController extends Controller
 
     // ── Checklist methods ─────────────────────────────────────────
 
+    /**
+     * Return checklist items as JSON for the checklist slideout.
+     * Also returns permission flags so JS can render correctly.
+     *
+     * can_manage = task owner OR project owner → can add/edit/delete items
+     * can_uncheck = same as can_manage → only owners can uncheck
+     * Everyone can CHECK (mark complete).
+     */
+    public function getChecklist(Task $task)
+    {
+        $this->authorize('view', $task);
+
+        $user       = auth()->user();
+        $canManage  = $user->id === $task->owner_id
+                   || $user->id === $task->project->owner_id
+                   || $user->hasRole('super_admin');
+
+        $items = $task->checklist()
+            ->with('checkedBy')
+            ->orderBy('order')
+            ->get()
+            ->map(fn($item) => [
+                'id'                     => $item->checklist_id,
+                'item_name'              => $item->checklist,
+                'is_completed'           => $item->is_completed,
+                'completed_by_name'      => $item->checkedBy
+                    ? trim(($item->checkedBy->first_name ?? '') . ' ' . ($item->checkedBy->last_name ?? ''))
+                    : null,
+                'completed_at_formatted' => $item->checkeddate
+                    ? $item->checkeddate->format('M d, Y g:ia')
+                    : null,
+                'order'                  => $item->order,
+            ]);
+
+        return response()->json([
+            'success'    => true,
+            'task_name'  => $task->name,
+            'can_manage' => $canManage,
+            'can_uncheck'=> $canManage,
+            'items'      => $items,
+        ]);
+    }
+
     public function addChecklistItem(Request $request, Task $task)
     {
         $this->authorize('manageChecklist', $task);
 
         $request->validate(['item_name' => 'required|string|max:255']);
 
-        $maxOrder = $task->checklist()->max('sort_order') ?? 0;
+        $maxOrder = $task->checklist()->max('order') ?? 0;
         $task->checklist()->create([
-            'item_name'    => $request->item_name,
-            'sort_order'   => $maxOrder + 1,
-            'is_completed' => false,
+            'checklist' => $request->item_name,
+            'order'     => $maxOrder + 1,
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
         return back()->with('success', 'Checklist item added.');
     }
 
@@ -443,26 +494,47 @@ class TaskController extends Controller
 
         $request->validate(['item_name' => 'required|string|max:255']);
 
-        $item = $task->checklist()->findOrFail($itemId);
-        $item->update(['item_name' => $request->item_name]);
+        $item = $task->checklist()->where('checklist_id', $itemId)->firstOrFail();
+        $item->update(['checklist' => $request->item_name]);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
         return back()->with('success', 'Checklist item updated.');
     }
 
-    public function deleteChecklistItem(Task $task, $itemId)
+    public function deleteChecklistItem(Request $request, Task $task, $itemId)
     {
         $this->authorize('manageChecklist', $task);
 
-        $task->checklist()->findOrFail($itemId)->delete();
+        $task->checklist()->where('checklist_id', $itemId)->firstOrFail()->delete();
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
         return back()->with('success', 'Checklist item deleted.');
     }
 
-    public function toggleChecklistItem(Task $task, $itemId)
+    public function toggleChecklistItem(Request $request, Task $task, $itemId)
     {
-        $this->authorize('checkChecklistItem', $task);
+        $this->authorize('view', $task); // everyone can attempt toggle
 
-        $item = $task->checklist()->findOrFail($itemId);
+        $item      = $task->checklist()->where('checklist_id', $itemId)->firstOrFail();
+        $user      = auth()->user();
+        $canManage = $user->id === $task->owner_id
+                  || $user->id === $task->project->owner_id
+                  || $user->hasRole('super_admin');
+
+        // Uncheck is restricted to owners only
+        if ($item->is_completed && !$canManage) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only the task owner or project manager can uncheck items.',
+                ], 403);
+            }
+            return back()->with('error', 'Only the task owner or project manager can uncheck items.');
+        }
 
         if ($item->is_completed) {
             $item->markIncomplete();
@@ -470,6 +542,181 @@ class TaskController extends Controller
             $item->markComplete(auth()->id());
         }
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
         return back()->with('success', 'Checklist item updated.');
+    }
+    // ── Task Log methods ──────────────────────────────────────────
+
+    /**
+     * Return all log entries for a task as JSON (for the log modal).
+     */
+    public function getLogs(Task $task)
+    {
+        $this->authorize('view', $task);
+
+        $logs = TaskLog::where('task_log_task', $task->id)
+            ->with('creator')
+            ->orderBy('task_log_date', 'desc')
+            ->get()
+            ->map(fn($log) => [
+                'id'               => $log->task_log_id,
+                'name'             => $log->task_log_name,
+                'description'      => $log->task_log_description,
+                'hours'            => (float) $log->task_log_hours,
+                'date'             => $log->task_log_date?->format('Y-m-d'),
+                'date_formatted'   => $log->task_log_date?->format('M d, Y'),
+                'costcode'         => $log->task_log_costcode,
+                'phase'            => $log->task_log_phase,
+                'risk'             => $log->task_log_risk,
+                'percent_complete' => $log->task_percent_complete,
+                'creator_id'       => $log->task_log_creator,
+                'creator_name'     => trim(($log->creator->first_name ?? '') . ' ' . ($log->creator->last_name ?? '')),
+                'cost'             => $log->cost,
+            ]);
+
+        return response()->json([
+            'success'      => true,
+            'task_name'    => $task->name,
+            'flagged'      => (bool) $task->flagged,
+            'flag_tooltip' => $task->flag_tooltip ?? '',
+            'logs'         => $logs,
+        ]);
+    }
+
+    /**
+     * Store a new task log entry.
+     * After saving, update task percent_complete (MAX of all log entries)
+     * and trigger bubbleUp to propagate hours/budget to parents.
+     */
+    public function logTime(Request $request, Task $task)
+    {
+        $this->authorize('logTime', $task);
+
+        $validated = $request->validate([
+            'task_log_name'        => 'nullable|string|max:255',
+            'task_log_description' => 'nullable|string',
+            'task_log_hours'       => 'required|numeric|min:0.01|max:999',
+            'task_log_date'        => 'required|date',
+            'task_log_costcode'    => 'nullable|string|max:8',
+            'task_log_phase'       => 'nullable|integer',
+            'task_log_risk'        => 'nullable|boolean',
+            'task_percent_complete'=> 'nullable|integer|min:0|max:100',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Default cost code from user profile if blank
+            $costCode = $validated['task_log_costcode']
+                ?? auth()->user()->cost_code
+                ?? null;
+
+            $log = TaskLog::create([
+                'task_log_task'        => $task->id,
+                'task_log_name'        => $validated['task_log_name'] ?? null,
+                'task_log_description' => $validated['task_log_description'] ?? null,
+                'task_log_creator'     => auth()->id(),
+                'task_log_hours'       => $validated['task_log_hours'],
+                'task_log_date'        => $validated['task_log_date'],
+                'task_log_costcode'    => $costCode,
+                'task_log_phase'       => $validated['task_log_phase'] ?? $task->phase ?? 0,
+                'task_log_risk'        => $validated['task_log_risk'] ?? 0,
+                'task_percent_complete'=> $validated['task_percent_complete'] ?? null,
+                'task_log_from_portal' => 'Yes',
+            ]);
+
+            // Update task flag state — most recent log entry drives it
+            $raised = !empty($validated['task_log_risk']);
+            $task->flagged    = $raised;
+            $task->flagged_by = $raised ? auth()->id() : null;
+            $task->flagged_at = $raised ? now()        : null;
+
+            // Update task percent_complete to MAX reported across all log entries
+            $maxPct = TaskLog::where('task_log_task', $task->id)
+                ->whereNotNull('task_percent_complete')
+                ->max('task_percent_complete');
+
+            if ($maxPct !== null) {
+                $task->percent_complete = $maxPct;
+
+                // Auto-set end_date when hitting 100% and no end date exists
+                if ($maxPct >= 100 && !$task->end_date) {
+                    $task->end_date = $validated['task_log_date'];
+                }
+            }
+
+            // Update total hours_worked on the task from sum of all logs
+            $totalHours = TaskLog::where('task_log_task', $task->id)->sum('task_log_hours');
+            $task->hours_worked = $totalHours;
+            $task->task_lastupdate = $validated['task_log_date'];
+            $task->saveQuietly();
+
+            DB::commit();
+
+            // Bubble up hours + budget to all ancestors
+            $this->bubbleUp($task);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Time logged successfully.',
+                'log'     => [
+                    'id'    => $log->task_log_id,
+                    'hours' => $log->task_log_hours,
+                    'date'  => $log->task_log_date?->format('M d, Y'),
+                ],
+                'task' => [
+                    'hours_worked'      => $task->fresh()->hours_worked,
+                    'percent_complete'  => $task->fresh()->percent_complete,
+                    'flagged'           => (bool) $task->fresh()->flagged,
+                    'flag_tooltip'      => $task->fresh()->flag_tooltip,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to log time: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a task log entry and recalculate task totals.
+     */
+    public function deleteLog(Request $request, Task $task, TaskLog $log)
+    {
+        $this->authorize('logTime', $task);
+
+        // Only creator or project owner can delete
+        if ($log->task_log_creator !== auth()->id()) {
+            $this->authorize('manageTeam', $task);
+        }
+
+        DB::beginTransaction();
+        try {
+            $log->delete();
+
+            // Recalculate hours_worked and percent_complete from remaining logs
+            $totalHours = TaskLog::where('task_log_task', $task->id)->sum('task_log_hours');
+            $maxPct     = TaskLog::where('task_log_task', $task->id)
+                ->whereNotNull('task_percent_complete')
+                ->max('task_percent_complete') ?? $task->percent_complete;
+
+            $task->hours_worked     = $totalHours;
+            $task->percent_complete = $maxPct;
+            $task->saveQuietly();
+
+            DB::commit();
+
+            $this->bubbleUp($task);
+
+            return response()->json(['success' => true, 'message' => 'Log entry deleted.']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

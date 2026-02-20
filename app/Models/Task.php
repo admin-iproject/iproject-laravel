@@ -47,6 +47,9 @@ class Task extends Model
         'target_budget',
         'actual_budget',
         'task_ignore_budget',
+        'flagged',
+        'flagged_by',
+        'flagged_at',
         'task_order',
         'level',
         'creator_id',
@@ -66,6 +69,8 @@ class Task extends Model
         'last_edited' => 'datetime',
         'task_lastupdate' => 'datetime',
         'task_ignore_budget' => 'boolean',
+        'flagged'            => 'boolean',
+        'flagged_at'         => 'datetime',
         'duration' => 'decimal:2',
         'target_budget' => 'decimal:2',
         'actual_budget' => 'decimal:2',
@@ -152,7 +157,12 @@ class Task extends Model
      */
     public function timeLogs(): HasMany
     {
-        return $this->hasMany(TaskLog::class);
+        return $this->hasMany(TaskLog::class, 'task_log_task');
+    }
+
+    public function flaggedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'flagged_by');
     }
 
     /**
@@ -215,63 +225,54 @@ class Task extends Model
     }
 
     /**
-     * Update target budget for this task only (no recursion into children).
-     * Then walk UP the parent chain — each ancestor recalculates itself
-     * from its direct children only. Stops when there is no parent.
-     * Max depth = tree depth (typically 3-4 levels), never touches siblings.
+     * Recalculate and save this task's rollup values from its direct children.
+     * NO recursion — does not walk up or down. Called by TaskController::bubbleUp().
+     * Controller owns the walk-up loop; model only owns the per-node calculation.
      */
-    public function updateTargetBudget(): void
+    public function recalculateFromChildren(): void
     {
-        if ($this->hasChildren()) {
-            // Parent task: sum direct children only (children already saved)
-            $this->target_budget = $this->calculateTargetFromChildren();
-        } else {
-            // Leaf task: derive from team assignment
-            if ($this->team()->exists()) {
-                $this->target_budget = $this->calculateTargetFromTeam();
-            }
-            // Otherwise leave manual entry intact
-        }
+        // One aggregate query across all direct children
+        $agg = Task::where('parent_id', $this->id)
+            ->where('id', '!=', $this->id)
+            ->selectRaw('
+                MIN(start_date)      as min_start,
+                MAX(end_date)        as max_end,
+                SUM(CASE WHEN task_ignore_budget = 0 THEN target_budget ELSE 0 END) as total_target,
+                SUM(CASE WHEN task_ignore_budget = 0 THEN actual_budget ELSE 0 END) as total_actual,
+                SUM(hours_worked)    as total_hours,
+                COUNT(*)             as child_count
+            ')
+            ->first();
+
+        if (!$agg || $agg->child_count == 0) return;
+
+        // Budget
+        $this->target_budget = (float) ($agg->total_target ?? 0);
+        $this->actual_budget = (float) ($agg->total_actual ?? 0);
+        $this->hours_worked  = (float) ($agg->total_hours  ?? 0);
+
+        // Dates: parent spans all children (children drive the range)
+        if ($agg->min_start) $this->start_date = $agg->min_start;
+        if ($agg->max_end)   $this->end_date   = $agg->max_end;
 
         $this->saveQuietly();
-
-        // Walk up ONE level — let parent recalculate itself (not this whole tree)
-        if ($this->parent_id) {
-            $parent = Task::find($this->parent_id); // fresh query, not cached relation
-            if ($parent) {
-                $parent->updateTargetBudget();
-            }
-        }
     }
 
     /**
-     * Update actual budget for this task only.
-     * Uses a single SUM query on direct children — no recursive PHP loops.
-     * Then walks UP the parent chain.
+     * @deprecated — use TaskController::bubbleUp() instead.
+     * Kept for any external callers; delegates to recalculateFromChildren().
+     */
+    public function updateTargetBudget(): void
+    {
+        $this->recalculateFromChildren();
+    }
+
+    /**
+     * @deprecated — use TaskController::bubbleUp() instead.
      */
     public function updateActualBudget(): void
     {
-        // Own time logs cost
-        $ownCost = $this->timeLogs()
-            ->join('users', 'task_log.user_id', '=', 'users.id')
-            ->selectRaw('SUM(task_log.hours * users.hourly_cost) as total')
-            ->value('total') ?? 0;
-
-        // Children actual budgets — already stored on each child row, just sum them
-        $childrenCost = $this->children()
-            ->where('task_ignore_budget', false)
-            ->sum('actual_budget');
-
-        $this->actual_budget = $ownCost + $childrenCost;
-        $this->saveQuietly();
-
-        // Walk up ONE level
-        if ($this->parent_id) {
-            $parent = Task::find($this->parent_id);
-            if ($parent) {
-                $parent->updateActualBudget();
-            }
-        }
+        $this->recalculateFromChildren();
     }
 
     /**
@@ -331,6 +332,17 @@ class Task extends Model
     public function isOwnedBy(User $user): bool
     {
         return $this->owner_id === $user->id;
+    }
+
+    /**
+     * Get flag tooltip text for task list display.
+     */
+    public function getFlagTooltipAttribute(): string
+    {
+        if (!$this->flagged) return '';
+        $who  = $this->flaggedBy?->first_name ?? 'Someone';
+        $when = $this->flagged_at?->format('M d, Y') ?? '';
+        return "🚩 Flag raised by {$who}" . ($when ? " on {$when}" : '');
     }
 
     /**

@@ -98,10 +98,16 @@ Route::middleware('auth')->group(function () {
     Route::put('tasks/{task}/team', [TaskController::class, 'updateTeam'])->name('tasks.updateTeam');
 
     // Task checklist
+    Route::get('tasks/{task}/checklist',                    [TaskController::class, 'getChecklist'])  ->name('tasks.getChecklist');
     Route::post('tasks/{task}/checklist',                    [TaskController::class, 'addChecklistItem'])   ->name('tasks.addChecklistItem');
     Route::put('tasks/{task}/checklist/{item}',              [TaskController::class, 'updateChecklistItem'])->name('tasks.updateChecklistItem');
     Route::delete('tasks/{task}/checklist/{item}',           [TaskController::class, 'deleteChecklistItem'])->name('tasks.deleteChecklistItem');
     Route::post('tasks/{task}/checklist/{item}/toggle',      [TaskController::class, 'toggleChecklistItem'])->name('tasks.toggleChecklistItem');
+
+    // Task log (time tracking)
+    Route::get('tasks/{task}/logs',          [TaskController::class, 'getLogs'])  ->name('tasks.logs');
+    Route::post('tasks/{task}/log-time',     [TaskController::class, 'logTime'])  ->name('tasks.log-time');
+    Route::delete('tasks/{task}/logs/{log}', [TaskController::class, 'deleteLog'])->name('tasks.log-delete');
 
     // Task restore / force-delete
     Route::post('tasks/{id}/restore',          [TaskController::class, 'restore'])    ->name('tasks.restore')->withTrashed();

@@ -114,8 +114,8 @@ $phases        = $project->phases ?? [];
         @if($allTasks->count() > 0)
 
             {{-- Sticky Column Headers --}}
-            <div class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-4 py-1.5 grid gap-2 text-xs font-medium text-gray-400 uppercase tracking-wide"
-                 style="grid-template-columns: 18px 18px 18px 18px 1fr 60px 90px 64px 72px 72px 68px 68px 72px;">
+            <div class="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 px-2 py-1.5 grid gap-2 text-xs font-medium text-gray-400 uppercase tracking-wide"
+                 style="grid-template-columns: 18px 18px 18px 18px 1fr 60px 90px 64px 72px 72px 68px 56px 100px;">
                 <div></div>
                 <div title="Hours risk"></div>
                 <div title="Budget risk"></div>
@@ -124,10 +124,10 @@ $phases        = $project->phases ?? [];
                 <div class="text-center">Owner</div>
                 <div class="text-center">Phase</div>
                 <div class="text-center">%</div>
-                <div class="text-center">Dates</div>
+                <div class="text-center">Due</div>
                 <div class="text-right">Hours</div>
                 <div class="text-right">Budget</div>
-                <div class="text-center">Check</div>
+                <div class="text-center">✓</div>
                 <div></div>
             </div>
 
@@ -178,7 +178,7 @@ $phases        = $project->phases ?? [];
                         }
 
                         $milestoneIcon = $task->milestone
-                            ? '<svg class="w-3 h-3 text-amber-500 inline mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>'
+                            ? '<svg class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" title="Milestone"><path d="M5 2a1 1 0 00-1 1v18a1 1 0 001.447.894L12 18.618l6.553 3.276A1 1 0 0020 21V3a1 1 0 00-1-1H5z"/></svg>'
                             : '';
 
                         $taskId = $task->id;
@@ -188,8 +188,8 @@ $phases        = $project->phases ?? [];
                                    data-level="' . $level . '"
                                    onclick="toggleTaskDetail(' . $taskId . ')">';
 
-                        echo '<div class="px-4 py-2 grid gap-2 items-center text-sm"
-                                   style="grid-template-columns: 18px 18px 18px 18px 1fr 60px 90px 64px 72px 72px 68px 68px 72px;
+                        echo '<div class="px-2 py-1 grid gap-2 items-center text-sm"
+                                   style="grid-template-columns: 18px 18px 18px 18px 1fr 60px 90px 64px 72px 72px 68px 56px 100px;
                                           margin-left: ' . $indent . 'px;">';
 
                         // Col 1: Expand/Collapse or status dot
@@ -203,12 +203,24 @@ $phases        = $project->phases ?? [];
                             echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>';
                             echo '</svg></button>';
                         } else {
+                            $statusLabel = match($task->status) {
+                                3 => 'Complete', 1 => 'In Progress',
+                                2 => 'On Hold',  4 => 'Cancelled',
+                                default => 'Not Started',
+                            };
                             echo '<div class="flex items-center justify-center">';
-                            echo '<div class="w-2 h-2 rounded-full ' . $statusDot . '"></div>';
+                            echo '<div class="w-2 h-2 rounded-full ' . $statusDot . '" title="' . $statusLabel . '"></div>';
                             echo '</div>';
                         }
 
-                        // Col 2: Hours risk
+                        // Flag icon — inline SVG, shown after task name when flagged
+                        $flagIcon = '';
+                        if ($task->flagged) {
+                            $flagTip  = e($task->flag_tooltip);
+                            $flagIcon = '<svg class="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" title="' . $flagTip . '"><path d="M4 4h11l-1.5 5L15 14H4V4zm0 0v18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+                        }
+
+                        // Col 2: Hours risk clock (always shown — flag moved to name row)
                         $hClass = riskColorClass($hoursRisk);
                         echo '<svg class="w-3.5 h-3.5 ' . $hClass . ' flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Hours: ' . $durActual . ' / ' . $durExpected . '">';
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>';
@@ -226,11 +238,12 @@ $phases        = $project->phases ?? [];
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>';
                         echo '</svg>';
 
-                        // Col 5: Task name
+                        // Col 5: Task name + flag + milestone + priority badge
                         echo '<div class="min-w-0">';
                         echo '<div class="flex items-center gap-1 truncate">';
-                        echo $milestoneIcon;
                         echo '<span class="font-medium text-gray-900 truncate">' . e($task->name) . '</span>';
+                        if ($flagIcon)      echo $flagIcon;
+                        if ($milestoneIcon) echo $milestoneIcon;
                         echo $priorityBadge;
                         echo '</div>';
                         $line2 = [];
@@ -295,7 +308,7 @@ $phases        = $project->phases ?? [];
                         }
                         echo '</div>';
 
-                        // Col 12: Checklist badge
+                        // Col 12: Checklist badge — always show x/y, clickable when items exist
                         echo '<div class="flex justify-center">';
                         if ($checkTotal > 0) {
                             $checkColor = $checkCompleted == $checkTotal
@@ -304,11 +317,14 @@ $phases        = $project->phases ?? [];
                             $tooltipItems = $task->checklist->map(fn($c) =>
                                 ($c->checkedby ? '✓ ' : '○ ') . e($c->checklist)
                             )->implode('&#10;');
-                            echo '<span class="px-1.5 py-0.5 text-xs rounded-full cursor-help ' . $checkColor . '"
-                                       title="' . $tooltipItems . '">'
+                            echo '<span class="px-1.5 py-0.5 text-xs rounded-full cursor-pointer ' . $checkColor . '"
+                                       title="' . $tooltipItems . '"
+                                       onclick="event.stopPropagation(); openChecklistModal(' . $taskId . ')">'
                                        . $checkCompleted . '/' . $checkTotal . '</span>';
                         } else {
-                            echo '<span class="text-gray-300 text-xs">—</span>';
+                            echo '<span class="px-1.5 py-0.5 text-xs rounded-full bg-gray-50 text-gray-400 cursor-pointer"
+                                       title="No checklist items"
+                                       onclick="event.stopPropagation(); openChecklistModal(' . $taskId . ')">0/0</span>';
                         }
                         echo '</div>';
 
@@ -316,25 +332,25 @@ $phases        = $project->phases ?? [];
                         echo '<div class="flex items-center justify-end gap-0.5" onclick="event.stopPropagation()">';
 
                         echo '<button onclick="openTaskLogModal(' . $taskId . ')"
-                                       class="p-1.5 text-gray-400 hover:text-amber-600 rounded transition-colors" title="Log time">';
+                                       class="p-1 text-gray-400 hover:text-amber-600 rounded transition-colors" title="Log time">';
                         echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>';
                         echo '</svg></button>';
 
                         echo '<button onclick="openCreateChildTaskModal(' . $taskId . ')"
-                                       class="p-1.5 text-gray-400 hover:text-green-600 rounded transition-colors" title="Add child task">';
+                                       class="p-1 text-gray-400 hover:text-green-600 rounded transition-colors" title="Add child task">';
                         echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>';
                         echo '</svg></button>';
 
                         echo '<button onclick="openEditTaskModal(' . $taskId . ')"
-                                       class="p-1.5 text-gray-400 hover:text-blue-600 rounded transition-colors" title="Edit task">';
+                                       class="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors" title="Edit task">';
                         echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>';
                         echo '</svg></button>';
 
                         echo '<button onclick="confirmDeleteTask(' . $taskId . ')"
-                                       class="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors" title="Delete task">';
+                                       class="p-1 text-gray-400 hover:text-red-600 rounded transition-colors" title="Delete task">';
                         echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>';
                         echo '</svg></button>';
@@ -504,3 +520,191 @@ $phases        = $project->phases ?? [];
     @endforeach
 
 </div>{{-- end widget-card --}}
+
+
+{{-- ============================================================
+     TASK LOG SLIDEOUT
+     Right-side panel. Collapsible entry form at top,
+     full scrollable history list below.
+     JS in project-tasks.js: openTaskLogModal(), closeTaskLogModal()
+     ============================================================ --}}
+<div id="taskLogModal"
+     class="fixed inset-0 z-50 hidden"
+     role="dialog" aria-modal="true">
+    <div class="absolute inset-0 bg-black/40" onclick="closeTaskLogModal()"></div>
+
+    <div class="absolute right-0 top-0 h-full w-full max-w-xl bg-white shadow-2xl flex flex-col">
+
+        {{-- ── Header ── --}}
+        <div class="flex-shrink-0 flex items-start justify-between px-5 py-4 border-b border-gray-200 bg-white">
+            <div class="min-w-0 pr-4">
+                <h2 class="text-base font-semibold text-gray-900 truncate" id="logModalTaskName">Log Time</h2>
+                <div class="flex items-center gap-3 mt-0.5">
+                    <span class="text-xs text-gray-400" id="logModalTotalHours"></span>
+                    <span id="logModalFlag" class="hidden text-xs text-red-500 flex items-center gap-1">
+                        🚩 <span id="logModalFlagWho"></span>
+                    </span>
+                </div>
+            </div>
+            <button onclick="closeTaskLogModal()"
+                    class="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        {{-- ── Collapsible Entry Form ── --}}
+        <div class="flex-shrink-0 border-b border-gray-200">
+            {{-- Toggle bar --}}
+            <button id="logFormToggle"
+                    onclick="toggleLogForm()"
+                    class="w-full flex items-center justify-between px-5 py-3 bg-amber-50 hover:bg-amber-100 transition-colors text-left">
+                <span class="text-sm font-medium text-amber-800">+ New Log Entry</span>
+                <svg id="logFormChevron" class="w-4 h-4 text-amber-600 transition-transform rotate-180"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
+
+            {{-- Form body (collapsible) --}}
+            <div id="logFormBody" class="px-5 py-4 bg-amber-50/30">
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">
+                            Hours <span class="text-red-500">*</span>
+                        </label>
+                        <input type="number" id="logHours" min="0.01" max="999" step="0.25"
+                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                               placeholder="e.g. 2.5">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">
+                            Date <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" id="logDate"
+                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">% Complete</label>
+                        <input type="number" id="logPercent" min="0" max="100" step="5"
+                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                               placeholder="0–100">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Cost Code</label>
+                        <input type="text" id="logCostcode" maxlength="8"
+                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                               placeholder="Optional">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Summary</label>
+                    <input type="text" id="logName" maxlength="255"
+                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                           placeholder="Brief description of work done">
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                    <textarea id="logDescription" rows="2"
+                              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                              placeholder="Optional detail"></textarea>
+                </div>
+
+                {{-- Red flag --}}
+                <label class="flex items-center gap-2 mb-4 p-2.5 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-red-50 transition-colors">
+                    <input type="checkbox" id="logRiskFlag"
+                           class="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-400">
+                    <span class="text-base leading-none">🚩</span>
+                    <span class="text-sm font-medium text-gray-700">Raise a red flag</span>
+                    <span class="text-xs text-gray-400 ml-auto">alerts team this needs attention</span>
+                </label>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="submitTaskLog()"
+                            class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        Save Log Entry
+                    </button>
+                    <span id="logSaveStatus" class="text-xs"></span>
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Log History (scrollable) ── --}}
+        <div class="flex-1 overflow-y-auto">
+            <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">History</span>
+                <span id="logEntryCount" class="text-xs text-gray-400"></span>
+            </div>
+            <div id="logHistoryList" class="divide-y divide-gray-100">
+                <div class="px-5 py-8 text-center text-xs text-gray-400">Loading…</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+{{-- ============================================================
+     CHECKLIST SLIDEOUT
+     Right-side panel. Permission-aware:
+     - Task owner / project owner: create, edit text, check, UNCHECK
+     - All others: view + check only (cannot uncheck)
+     JS in project-tasks.js: openChecklistModal(), closeChecklistModal()
+     ============================================================ --}}
+<div id="taskChecklistModal"
+     class="fixed inset-0 z-50 hidden"
+     role="dialog" aria-modal="true">
+    <div class="absolute inset-0 bg-black/40" onclick="closeChecklistModal()"></div>
+
+    <div class="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl flex flex-col">
+
+        {{-- ── Header ── --}}
+        <div class="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-gray-200">
+            <div>
+                <h2 class="text-base font-semibold text-gray-900" id="checklistModalTaskName">Checklist</h2>
+                <p class="text-xs text-gray-400 mt-0.5" id="checklistModalProgress"></p>
+            </div>
+            <button onclick="closeChecklistModal()"
+                    class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        {{-- ── Add Item (owners only — shown/hidden by JS based on canManage flag) ── --}}
+        <div id="checklistAddRow" class="hidden flex-shrink-0 px-5 py-3 border-b border-gray-100 bg-gray-50">
+            <div class="flex gap-2">
+                <input type="text" id="checklistNewItem" maxlength="255"
+                       placeholder="New checklist item…"
+                       class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                       onkeydown="if(event.key==='Enter'){ event.preventDefault(); addChecklistItem(); }">
+                <button onclick="addChecklistItem()"
+                        class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap">
+                    Add
+                </button>
+            </div>
+            <p id="checklistAddStatus" class="text-xs mt-1 text-gray-400 hidden"></p>
+        </div>
+
+        {{-- ── Items List (scrollable) ── --}}
+        <div class="flex-1 overflow-y-auto">
+            <div id="checklistItems" class="divide-y divide-gray-100">
+                <div class="px-5 py-8 text-center text-xs text-gray-400">Loading…</div>
+            </div>
+        </div>
+
+        {{-- ── Footer: save order / status ── --}}
+        <div id="checklistFooter" class="hidden flex-shrink-0 px-5 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+            <span id="checklistFooterStatus" class="text-xs text-gray-400"></span>
+        </div>
+
+    </div>
+</div>
+

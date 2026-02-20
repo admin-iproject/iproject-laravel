@@ -148,14 +148,21 @@ class ProjectController extends Controller
             'tasks' => function ($query) {
                 // Load ALL tasks with children recursively
                 $query->with([
+                        'owner',
+                        'checklist',
+                        'flaggedBy',
                         'children' => function($q) {
                             $q->with('children.children.children.children'); // Support 5 levels deep
                         },
                         'team.user', // Task team members for the unfold panel
                     ])
-                    ->select('id', 'project_id', 'name', 'parent_id', 'status', 'priority', 
-                            'percent_complete', 'start_date', 'end_date', 'level', 
-                            'target_budget', 'task_ignore_budget', 'owner_id')
+                    ->select('id', 'project_id', 'name', 'parent_id', 'status', 'priority',
+                            'percent_complete', 'start_date', 'end_date', 'level',
+                            'target_budget', 'actual_budget', 'task_ignore_budget', 'owner_id',
+                            'milestone', 'flagged', 'flagged_by', 'flagged_at',
+                            'hours_worked', 'duration', 'duration_type',
+                            'cost_code', 'phase', 'description',
+                            'task_order', 'last_edited', 'created_at', 'updated_at')
                     ->orderBy('task_order', 'asc')
                     ->orderBy('id', 'asc');
             },

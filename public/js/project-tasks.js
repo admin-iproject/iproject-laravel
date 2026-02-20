@@ -324,13 +324,443 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ─────────────────────────────────────────────
-    // LOG TIME (placeholder)
+    // TASK LOG MODAL
     // ─────────────────────────────────────────────
     window.openTaskLogModal = function (taskId) {
-        alert('Log time for task ' + taskId + ' — coming soon');
+        _logCurrentTaskId = taskId;
+        document.getElementById('logDate').value = new Date().toISOString().split('T')[0];
+        _resetLogForm();
+        document.getElementById('taskLogModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        _loadLogData(taskId);
     };
 
+    window.closeTaskLogModal = function () {
+        document.getElementById('taskLogModal').classList.add('hidden');
+        document.body.style.overflow = '';
+        _logCurrentTaskId = null;
+    };
+
+    window.toggleLogForm = function () {
+        const body    = document.getElementById('logFormBody');
+        const chevron = document.getElementById('logFormChevron');
+        const hidden  = body.classList.toggle('hidden');
+        chevron.style.transform = hidden ? 'rotate(0deg)' : 'rotate(180deg)';
+    };
+
+    window.submitTaskLog = function () {
+        const taskId = _logCurrentTaskId;
+        if (!taskId) return;
+        const hours  = parseFloat(document.getElementById('logHours').value);
+        const date   = document.getElementById('logDate').value;
+        const status = document.getElementById('logSaveStatus');
+        if (!hours || hours <= 0) { _logStatus('Please enter valid hours.', 'red'); return; }
+        if (!date)               { _logStatus('Please select a date.', 'red'); return; }
+        _logStatus('Saving…', 'grey');
+
+        fetch(`/tasks/${taskId}/log-time`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
+            body: JSON.stringify({
+                task_log_hours:        hours,
+                task_log_date:         date,
+                task_log_name:         document.getElementById('logName').value        || null,
+                task_log_description:  document.getElementById('logDescription').value || null,
+                task_log_costcode:     document.getElementById('logCostcode').value    || null,
+                task_percent_complete: document.getElementById('logPercent').value
+                                       ? parseInt(document.getElementById('logPercent').value) : null,
+                task_log_risk:         document.getElementById('logRiskFlag').checked ? 1 : 0,
+            }),
+        })
+        .then(safeJson)
+        .then(data => {
+            if (!data.success) { _logStatus(data.message || 'Save failed.', 'red'); return; }
+            _logStatus('Saved!', 'green');
+            _resetLogForm();
+            _loadLogData(taskId);
+            if (data.task) {
+                _updateTaskRowFlag(taskId, data.task.flagged, data.task.flag_tooltip);
+                _pulseTaskRow(taskId);
+            }
+            setTimeout(() => _logStatus('', ''), 3000);
+        })
+        .catch(() => _logStatus('Network error — please try again.', 'red'));
+    };
+
+    window.deleteTaskLog = function (logId) {
+        const taskId = _logCurrentTaskId;
+        if (!taskId || !confirm('Delete this log entry?')) return;
+        fetch(`/tasks/${taskId}/logs/${logId}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
+        })
+        .then(safeJson)
+        .then(data => {
+            if (data.success) _loadLogData(taskId);
+            else alert(data.message || 'Delete failed.');
+        });
+    };
+
+    // ─────────────────────────────────────────────
+    // CHECKLIST MODAL
+    // ─────────────────────────────────────────────
+    window.openChecklistModal = function (taskId) {
+        _checklistCurrentTaskId = taskId;
+        document.getElementById('taskChecklistModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        _loadChecklistData(taskId);
+    };
+
+    window.closeChecklistModal = function () {
+        document.getElementById('taskChecklistModal').classList.add('hidden');
+        document.body.style.overflow = '';
+        _checklistCurrentTaskId = null;
+    };
+
+    window.addChecklistItem = function () {
+        const taskId = _checklistCurrentTaskId;
+        const input  = document.getElementById('checklistNewItem');
+        const text   = input.value.trim();
+        if (!taskId || !text) return;
+
+        const statusEl = document.getElementById('checklistAddStatus');
+        statusEl.textContent = 'Saving…';
+        statusEl.classList.remove('hidden', 'text-red-500', 'text-gray-400');
+        statusEl.classList.add('text-gray-400');
+
+        fetch(`/tasks/${taskId}/checklist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
+            body: JSON.stringify({ item_name: text }),
+        })
+        .then(safeJson)
+        .then(data => {
+            if (data.success === false) {
+                statusEl.textContent = data.message || 'Failed to add item.';
+                statusEl.classList.add('text-red-500');
+                return;
+            }
+            input.value = '';
+            statusEl.classList.add('hidden');
+            _loadChecklistData(taskId);
+        })
+        .catch(() => {
+            statusEl.textContent = 'Network error.';
+            statusEl.classList.add('text-red-500');
+        });
+    };
+
+    window.toggleChecklistItemJS = function (taskId, itemId, currentlyChecked, canUncheck) {
+        // If already checked and user cannot uncheck — do nothing
+        if (currentlyChecked && !canUncheck) {
+            alert('Only the task owner or project manager can uncheck items.');
+            // Re-check the checkbox visually
+            const cb = document.getElementById('chk-' + itemId);
+            if (cb) cb.checked = true;
+            return;
+        }
+        fetch(`/tasks/${taskId}/checklist/${itemId}/toggle`, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
+        })
+        .then(safeJson)
+        .then(data => {
+            if (data.success === false) {
+                alert(data.message || 'Failed to update item.');
+                _loadChecklistData(taskId); // reload to get true state
+            } else {
+                _loadChecklistData(taskId);
+            }
+        })
+        .catch(() => _loadChecklistData(taskId));
+    };
+
+    window.deleteChecklistItem = function (taskId, itemId) {
+        if (!confirm('Delete this checklist item?')) return;
+        fetch(`/tasks/${taskId}/checklist/${itemId}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
+        })
+        .then(safeJson)
+        .then(data => {
+            if (data.success !== false) _loadChecklistData(taskId);
+            else alert(data.message || 'Delete failed.');
+        });
+    };
+
+    // Escape key closes whichever slideout is open
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        if (_logCurrentTaskId)       closeTaskLogModal();
+        if (_checklistCurrentTaskId) closeChecklistModal();
+    });
+
 });
+
+// ════════════════════════════════════════════════════════════════
+// TASK LOG — private helpers (module-scoped)
+// ════════════════════════════════════════════════════════════════
+let _logCurrentTaskId       = null;
+let _checklistCurrentTaskId = null;
+
+function _resetLogForm() {
+    ['logHours','logPercent','logCostcode','logName','logDescription'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('logRiskFlag').checked = false;
+    document.getElementById('logSaveStatus').textContent = '';
+}
+
+function _logStatus(msg, color) {
+    const el = document.getElementById('logSaveStatus');
+    el.textContent = msg;
+    el.className = 'text-xs ' + ({ red: 'text-red-500', green: 'text-green-600', grey: 'text-gray-400' }[color] || '');
+}
+
+function _loadLogData(taskId) {
+    document.getElementById('logHistoryList').innerHTML =
+        '<div class="px-5 py-8 text-center text-xs text-gray-400">Loading…</div>';
+
+    fetch(`/tasks/${taskId}/logs`, {
+        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf }
+    })
+    .then(safeJson)
+    .then(data => {
+        if (!data.success) return;
+
+        // Header
+        if (data.task_name) {
+            document.getElementById('logModalTaskName').textContent = data.task_name;
+        }
+
+        // Total hours
+        const total = (data.logs || []).reduce((s, l) => s + l.hours, 0);
+        document.getElementById('logModalTotalHours').textContent =
+            total > 0 ? total.toFixed(1) + ' hrs total' : '';
+
+        // Flag indicator
+        const flagEl  = document.getElementById('logModalFlag');
+        const flagWho = document.getElementById('logModalFlagWho');
+        if (data.flagged) {
+            flagEl.classList.remove('hidden');
+            flagWho.textContent = data.flag_tooltip || '';
+        } else {
+            flagEl.classList.add('hidden');
+        }
+
+        // Entry count
+        document.getElementById('logEntryCount').textContent =
+            data.logs.length ? data.logs.length + ' entr' + (data.logs.length === 1 ? 'y' : 'ies') : 'No entries yet';
+
+        _renderLogHistory(data.logs);
+    })
+    .catch(() => {
+        document.getElementById('logHistoryList').innerHTML =
+            '<div class="px-5 py-8 text-center text-xs text-red-400">Failed to load logs.</div>';
+    });
+}
+
+function _renderLogHistory(logs) {
+    const container = document.getElementById('logHistoryList');
+    if (!logs || logs.length === 0) {
+        container.innerHTML = '<div class="px-5 py-8 text-center text-xs text-gray-400">No time logged yet.</div>';
+        return;
+    }
+
+    container.innerHTML = logs.map(log => `
+        <div class="px-5 py-4 hover:bg-gray-50 transition-colors" id="log-row-${log.id}">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 text-center min-w-[56px]">
+                    <div class="text-sm font-bold text-amber-700">${log.hours.toFixed(1)}</div>
+                    <div class="text-xs text-amber-500 leading-tight">hrs</div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between gap-2 mb-1">
+                        <span class="text-sm font-medium text-gray-800">${log.name ? escHtml(log.name) : '<span class="text-gray-400 font-normal italic">No summary</span>'}</span>
+                        <span class="text-xs text-gray-400 flex-shrink-0">${log.date_formatted}</span>
+                    </div>
+                    ${log.description
+                        ? `<p class="text-xs text-gray-600 mb-1 leading-relaxed">${escHtml(log.description)}</p>`
+                        : ''}
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                        <span class="text-xs text-gray-500 font-medium">${escHtml(log.creator_name)}</span>
+                        ${log.percent_complete !== null
+                            ? `<span class="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">${log.percent_complete}% complete</span>`
+                            : ''}
+                        ${log.costcode
+                            ? `<span class="text-xs text-gray-400 font-mono">${escHtml(log.costcode)}</span>`
+                            : ''}
+                        ${log.cost > 0
+                            ? `<span class="text-xs text-gray-500">$${log.cost.toFixed(2)}</span>`
+                            : ''}
+                        ${log.risk
+                            ? `<span class="text-xs text-red-500 flex items-center gap-0.5">🚩 Flag raised</span>`
+                            : ''}
+                    </div>
+                </div>
+                <button onclick="deleteTaskLog(${log.id})"
+                        class="flex-shrink-0 p-1 text-gray-200 hover:text-red-400 rounded transition-colors"
+                        title="Delete entry">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
+
+            </div>
+        </div>
+    `).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// CHECKLIST — private helpers
+// ════════════════════════════════════════════════════════════════
+function _loadChecklistData(taskId) {
+    document.getElementById('checklistItems').innerHTML =
+        '<div class="px-5 py-8 text-center text-xs text-gray-400">Loading…</div>';
+
+    fetch(`/tasks/${taskId}/checklist`, {
+        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf }
+    })
+    .then(safeJson)
+    .then(data => {
+        if (!data.success) return;
+
+        document.getElementById('checklistModalTaskName').textContent =
+            (data.task_name || 'Checklist');
+
+        const items     = data.items || [];
+        const completed = items.filter(i => i.is_completed).length;
+        document.getElementById('checklistModalProgress').textContent =
+            items.length ? `${completed} of ${items.length} complete` : 'No items yet';
+
+        // Show/hide add row based on canManage permission
+        const addRow = document.getElementById('checklistAddRow');
+        if (data.can_manage) {
+            addRow.classList.remove('hidden');
+        } else {
+            addRow.classList.add('hidden');
+        }
+
+        _renderChecklistItems(taskId, items, data.can_manage, data.can_uncheck);
+    })
+    .catch(() => {
+        document.getElementById('checklistItems').innerHTML =
+            '<div class="px-5 py-8 text-center text-xs text-red-400">Failed to load checklist.</div>';
+    });
+}
+
+function _renderChecklistItems(taskId, items, canManage, canUncheck) {
+    const container = document.getElementById('checklistItems');
+
+    if (!items.length) {
+        container.innerHTML = canManage
+            ? '<div class="px-5 py-8 text-center text-xs text-gray-400">No items yet — add one above.</div>'
+            : '<div class="px-5 py-8 text-center text-xs text-gray-400">No checklist items.</div>';
+        return;
+    }
+
+    container.innerHTML = items.map(item => {
+        const checked       = item.is_completed;
+        const checkboxClass = checked
+            ? 'text-green-500'
+            : 'text-gray-300 hover:text-amber-500';
+
+        // Tooltip when non-owner tries to uncheck
+        const uncheckBlocked = checked && !canUncheck;
+        const cbTitle = uncheckBlocked
+            ? 'Only the task owner or project manager can uncheck items'
+            : (checked ? 'Click to uncheck' : 'Click to complete');
+
+        return `
+        <div class="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors group
+                    ${checked ? 'bg-green-50/30' : ''}">
+            <button onclick="toggleChecklistItemJS(${taskId}, ${item.id}, ${checked}, ${canUncheck})"
+                    id="chk-btn-${item.id}"
+                    title="${cbTitle}"
+                    style="
+                        flex-shrink:0; margin-top:2px;
+                        width:18px; height:18px; border-radius:4px;
+                        border: 2px solid ${checked ? '#22c55e' : '#d1d5db'};
+                        background: ${checked ? '#22c55e' : '#ffffff'};
+                        color: white;
+                        display:flex; align-items:center; justify-content:center;
+                        cursor:${uncheckBlocked ? 'not-allowed' : 'pointer'};
+                        transition: border-color 0.15s, background 0.15s;
+                        box-shadow: inset 0 1px 2px rgba(0,0,0,0.08);
+                    "
+                    onmouseover="if(!${checked}){ this.style.borderColor='#f59e0b'; }"
+                    onmouseout="if(!${checked}){ this.style.borderColor='#d1d5db'; }">
+                ${checked ? `<svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7"/>
+                </svg>` : ''}
+            </button>
+            <div class="flex-1 min-w-0">
+                ${canManage && !checked
+                    ? `<input type="text"
+                              value="${escHtml(item.item_name)}"
+                              maxlength="255"
+                              class="w-full text-sm text-gray-800 bg-transparent border-0 border-b border-transparent
+                                     focus:border-amber-400 focus:outline-none focus:bg-white focus:px-1 rounded transition-all"
+                              onchange="updateChecklistItemText(${taskId}, ${item.id}, this.value)"
+                              title="Click to edit">`
+                    : `<span class="text-sm ${checked ? 'line-through text-gray-400' : 'text-gray-800'}">${escHtml(item.item_name)}</span>`
+                }
+                ${checked && item.completed_by_name
+                    ? `<p class="text-xs text-gray-400 mt-0.5">✓ ${escHtml(item.completed_by_name)} — ${item.completed_at_formatted || ''}</p>`
+                    : ''}
+            </div>
+            ${canManage && !checked
+                ? `<button onclick="deleteChecklistItem(${taskId}, ${item.id})"
+                           class="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-400 rounded transition-all"
+                           title="Delete item">
+                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                       </svg>
+                   </button>`
+                : '<div class="w-6"></div>'
+            }
+        </div>`;
+    }).join('');
+}
+
+window.updateChecklistItemText = function(taskId, itemId, newText) {
+    if (!newText.trim()) return;
+    fetch(`/tasks/${taskId}/checklist/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': projectCsrf },
+        body: JSON.stringify({ item_name: newText.trim() }),
+    })
+    .then(safeJson)
+    .then(data => { if (data.success === false) alert(data.message || 'Update failed.'); })
+    .catch(() => alert('Network error.'));
+};
+
+// ════════════════════════════════════════════════════════════════
+// ROW UPDATE HELPERS
+// ════════════════════════════════════════════════════════════════
+function _updateTaskRowFlag(taskId, flagged, tooltip) {
+    const existing = document.getElementById(`flag-badge-${taskId}`);
+    if (flagged) {
+        if (!existing) {
+            const badge = document.createElement('span');
+            badge.id        = `flag-badge-${taskId}`;
+            badge.title     = tooltip || '🚩 Flag raised';
+            badge.textContent = '🚩';
+            badge.className = 'absolute top-1 left-1 text-xs leading-none pointer-events-none z-10';
+            const row = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (row) { row.style.position = 'relative'; row.appendChild(badge); }
+        }
+    } else {
+        if (existing) existing.remove();
+    }
+}
+
+function _pulseTaskRow(taskId) {
+    const row = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (!row) return;
+    row.style.outline = '2px solid #f59e0b';
+    setTimeout(() => { row.style.outline = ''; }, 2000);
+}
 
 // ════════════════════════════════════════════════════════════════
 // TASK TEAM ASSIGNMENT — live budget calculation
