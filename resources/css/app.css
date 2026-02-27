@@ -3,3 +3,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+    /* ── Ticket Config Slideout ──────────────────────────────────────── */
+    .cfg-row {
+        @apply flex items-center justify-between gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl;
+    }
+    .cfg-badge {
+        @apply text-xs font-medium px-2 py-0.5 rounded-full;
+    }
+    .cfg-btn-icon {
+        @apply p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors;
+    }
+}

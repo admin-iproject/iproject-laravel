@@ -7,7 +7,7 @@
     $phases   = $project->phases ?? [];
     if (!is_array($phases)) $phases = [];
 @endphp
-<div id="taskCreateModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+<div id="taskCreateModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-[70] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
 
         {{-- Modal Header --}}
@@ -56,7 +56,7 @@
                         </select>
                         <div class="text-red-500 text-xs mt-1 hidden" data-error="owner_id"></div>
                     </div>
-                    <div>
+                    <div id="createParentTaskWrapper">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Parent Task</label>
                         <select name="parent_id" id="parentTaskSelect"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-sm">
@@ -65,10 +65,13 @@
                                 @if(is_null($t->parent_id) || $t->parent_id == $t->id)
                                     <option value="{{ $t->id }}">{{ $t->name }}</option>
                                     @foreach($allTasks->where('parent_id', $t->id)->where('id', '!=', $t->id) as $c1)
-                                        <option value="{{ $c1->id }}">— {{ $c1->name }}</option>
-                                        @foreach($allTasks->where('parent_id', $c1->id)->where('id', '!=', $c1->id) as $c2)
-                                            <option value="{{ $c2->id }}">— — {{ $c2->name }}</option>
-                                        @endforeach
+                                        {{-- Skip children of sprint tasks — they cannot have children (no grandchildren on board) --}}
+                                        @if(!$t->task_sprint)
+                                            <option value="{{ $c1->id }}">— {{ $c1->name }}</option>
+                                            @foreach($allTasks->where('parent_id', $c1->id)->where('id', '!=', $c1->id) as $c2)
+                                                <option value="{{ $c2->id }}">— — {{ $c2->name }}</option>
+                                            @endforeach
+                                        @endif
                                     @endforeach
                                 @endif
                             @endforeach
@@ -207,6 +210,16 @@
                                 <input type="checkbox" name="access" value="1"
                                        class="rounded border-gray-300 text-amber-500 focus:ring-amber-400">
                                 <span class="text-sm text-gray-700">Private</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer" title="Mark as Sprint — enables Kanban board. Sprint tasks can only have one level of children.">
+                                <input type="checkbox" name="task_sprint" id="createTaskSprint" value="1"
+                                       class="rounded border-gray-300 text-amber-500 focus:ring-amber-400">
+                                <span class="flex items-center gap-1 text-sm font-medium text-amber-700">
+                                    <svg class="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M13 2L4.09 12.97A1 1 0 005 14.5h6.5L11 22l8.91-10.97A1 1 0 0019 9.5h-6.5L13 2z"/>
+                                    </svg>
+                                    Sprint
+                                </span>
                             </label>
                         </div>
                     </div>

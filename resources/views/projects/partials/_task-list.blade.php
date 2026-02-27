@@ -183,6 +183,21 @@ $phases        = $project->phases ?? [];
 
                         $taskId = $task->id;
 
+                        // Sprint / Kanban
+                        $isSprint       = (bool)($task->task_sprint ?? false);
+                        $parentTask     = $task->parent_id ? $allTasks->firstWhere('id', $task->parent_id) : null;
+                        $parentIsSprint = $parentTask && ($parentTask->task_sprint ?? false);
+
+                        // Kanban bolt icon — only on sprint tasks
+                        $kanbanIcon = $isSprint
+                            ? '<button onclick="event.stopPropagation(); openKanbanBoard(' . $taskId . ')"
+                                        class="p-1 text-amber-400 hover:text-amber-600 rounded transition-colors flex-shrink-0" title="Open Kanban Board">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M13 2L4.09 12.97A1 1 0 005 14.5h6.5L11 22l8.91-10.97A1 1 0 0019 9.5h-6.5L13 2z"/>
+                                </svg>
+                               </button>'
+                            : '';
+
                         echo '<div class="task-row ' . $rowBg . ' hover:bg-gray-50 transition-colors cursor-pointer"
                                    data-task-id="' . $taskId . '"
                                    data-level="' . $level . '"
@@ -306,12 +321,13 @@ $phases        = $project->phases ?? [];
                             $dTipLine1, $dTipLine2
                         );
 
-                        // Col 5: Task name + flag + milestone + priority badge
+                        // Col 5: Task name + flag + milestone + kanban + priority badge
                         echo '<div class="min-w-0">';
                         echo '<div class="flex items-center gap-1 truncate">';
                         echo '<span class="font-medium text-gray-900 truncate">' . e($task->name) . '</span>';
                         if ($flagIcon)      echo $flagIcon;
                         if ($milestoneIcon) echo $milestoneIcon;
+                        if ($kanbanIcon)    echo $kanbanIcon;
                         echo $priorityBadge;
                         echo '</div>';
                         $line2 = [];
@@ -405,11 +421,15 @@ $phases        = $project->phases ?? [];
                         echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>';
                         echo '</svg></button>';
 
-                        echo '<button onclick="openCreateChildTaskModal(' . $taskId . ')"
-                                       class="p-1 text-gray-400 hover:text-green-600 rounded transition-colors" title="Add child task">';
-                        echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
-                        echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>';
-                        echo '</svg></button>';
+                        // Hide "add child" only on children of sprint tasks (no grandchildren on the board)
+                        // Sprint tasks themselves DO get the + icon — adding a child opens the create modal with this sprint as parent
+                        if (!$parentIsSprint) {
+                            echo '<button onclick="openCreateChildTaskModal(' . $taskId . ')"
+                                           class="p-1 text-gray-400 hover:text-green-600 rounded transition-colors" title="Add child task">';
+                            echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                            echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>';
+                            echo '</svg></button>';
+                        }
 
                         echo '<button onclick="openEditTaskModal(' . $taskId . ')"
                                        class="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors" title="Edit task">';
@@ -601,7 +621,7 @@ $phases        = $project->phases ?? [];
      JS in project-tasks.js: openTaskLogModal(), closeTaskLogModal()
      ============================================================ --}}
 <div id="taskLogModal"
-     class="fixed inset-0 z-50 hidden"
+     class="fixed inset-0 z-[70] hidden"
      role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-black/40" onclick="closeTaskLogModal()"></div>
 
@@ -770,7 +790,7 @@ $phases        = $project->phases ?? [];
      JS in project-tasks.js: openChecklistModal(), closeChecklistModal()
      ============================================================ --}}
 <div id="taskChecklistModal"
-     class="fixed inset-0 z-50 hidden"
+     class="fixed inset-0 z-[70] hidden"
      role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-black/40" onclick="closeChecklistModal()"></div>
 
@@ -820,3 +840,49 @@ $phases        = $project->phases ?? [];
     </div>
 </div>
 
+
+{{-- ════════════════════════════════════════════════════════════════
+     KANBAN BOARD MODAL
+     Full-screen overlay showing sprint task children as sticky note cards.
+     Columns: Backlog | Phase 1 | Phase 2 | … | Stuck
+     ════════════════════════════════════════════════════════════════ --}}
+<div id="kanbanBoardModal"
+     class="fixed inset-0 bg-gray-900 bg-opacity-95 z-[60] hidden flex flex-col"
+     style="backdrop-filter: blur(4px);">
+
+    {{-- Board Header --}}
+    <div class="flex-shrink-0 bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M13 2L4.09 12.97A1 1 0 005 14.5h6.5L11 22l8.91-10.97A1 1 0 0019 9.5h-6.5L13 2z"/>
+            </svg>
+            <div>
+                <h2 id="kanbanBoardTitle" class="text-lg font-bold text-white leading-tight">Sprint Board</h2>
+                <div id="kanbanBoardMeta" class="flex items-center gap-4 text-xs text-gray-400 mt-0.5"></div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="addKanbanCard()"
+                    class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add Card
+            </button>
+            <button onclick="closeKanbanBoard()"
+                    class="p-2 text-gray-400 hover:text-white rounded-lg transition-colors" title="Close">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    {{-- Board Columns (horizontal scroll, columns scroll vertically) --}}
+    <div class="overflow-x-auto overflow-y-auto" style="flex:1;">
+        <div id="kanbanColumnsContainer" class="flex gap-4 p-5 min-w-max items-start">
+            {{-- Columns injected by JS --}}
+        </div>
+    </div>
+
+</div>

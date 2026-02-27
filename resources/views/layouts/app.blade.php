@@ -39,21 +39,24 @@
                 </div>
             </header>
         @endif
-        
+
         <!-- Page Content -->
-        <main class="p-6">
-            <!-- Success/Error Messages -->
-            @if(session('success'))
-                <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg">
-                    {{ session('success') }}
-                </div>
-            @endif
-            
-            @if(session('error'))
-                <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg">
-                    {{ session('error') }}
-                </div>
-            @endif
+        {{-- Pages can @section('full_width', true) to remove padding and fill the content area --}}
+        <main class="{{ View::hasSection('full_width') ? 'p-0 h-[calc(100vh-var(--top-nav-height))] overflow-hidden' : 'p-6' }}">
+            @unless(View::hasSection('full_width'))
+                <!-- Success/Error Messages -->
+                @if(session('success'))
+                    <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg">
+                        {{ session('success') }}
+                    </div>
+                @endif
+                
+                @if(session('error'))
+                    <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg">
+                        {{ session('error') }}
+                    </div>
+                @endif
+            @endunless
             
             <!-- Main Content Slot -->
             @isset($slot)

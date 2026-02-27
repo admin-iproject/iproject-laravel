@@ -127,11 +127,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (createEnd.value && createEnd.value < this.value) createEnd.value = '';
             });
         }
+
     }
 
     function closeCreateModal() {
         createModal.classList.add('hidden');
-        document.body.style.overflow = '';
+        // If closed from kanban context, restore board scroll lock
+        if (_kanbanContext) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        _kanbanContext = null;
         createForm.reset();
         document.getElementById('createPriorityVal').textContent = '5';
         document.getElementById('createProgressVal').textContent = '0';
@@ -147,9 +154,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Tracks whether create modal was opened from the kanban board
+    // If set, successful save refreshes the board instead of reloading the page
+    var _kanbanContext = null;
+
     window.openCreateChildTaskModal = function (parentTaskId) {
         if (parentSelect) parentSelect.value = parentTaskId;
         document.getElementById('taskModalTitle').textContent = 'Create Task';
+        // Detect if kanban board is open — if so, reload board on save
+        var boardModal = document.getElementById('kanbanBoardModal');
+        _kanbanContext = (boardModal && !boardModal.classList.contains('hidden'))
+            ? parentTaskId
+            : null;
         openCreateModal();
     };
 
@@ -197,6 +213,7 @@ document.addEventListener('DOMContentLoaded', function () {
             milestone:          fd.get('milestone')         ? 1 : 0,
             access:             fd.get('access')            ? 1 : 0,
             task_ignore_budget: fd.get('task_ignore_budget')? 1 : 0,
+            task_sprint:        fd.get('task_sprint')       ? 1 : 0,
         };
         if (fd.get('parent_id')) data.parent_id = parseInt(fd.get('parent_id'));
 
@@ -209,7 +226,15 @@ document.addEventListener('DOMContentLoaded', function () {
             body:    JSON.stringify(data),
         })
         .then(r => { if (!r.ok) return safeJson(r).then(err => { throw err; }); return safeJson(r); })
-        .then(() => { closeCreateModal(); window.location.reload(); })
+        .then(() => {
+            const savedKanbanContext = _kanbanContext; // capture before closeCreateModal nulls it
+            closeCreateModal();
+            if (savedKanbanContext && typeof openKanbanBoard === 'function') {
+                openKanbanBoard(savedKanbanContext);
+            } else {
+                window.location.reload();
+            }
+        })
         .catch(error => {
             submitBtn.disabled    = false;
             submitBtn.textContent = origText;
@@ -318,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('editMilestone').checked    = !!task.milestone;
         document.getElementById('editAccess').checked       = task.access === 1;
         document.getElementById('editIgnoreBudget').checked = !!task.task_ignore_budget;
+        document.getElementById('editTaskSprint').checked   = !!task.task_sprint;
 
         // Parent
         const parentSel = document.getElementById('editParentTaskSelect');
@@ -381,6 +407,7 @@ document.addEventListener('DOMContentLoaded', function () {
             milestone:          document.getElementById('editMilestone').checked            ? 1 : 0,
             access:             document.getElementById('editAccess').checked               ? 1 : 0,
             task_ignore_budget: document.getElementById('editIgnoreBudget').checked         ? 1 : 0,
+            task_sprint:        document.getElementById('editTaskSprint').checked           ? 1 : 0,
         };
 
         // Append team data
@@ -392,7 +419,16 @@ document.addEventListener('DOMContentLoaded', function () {
             body:    JSON.stringify(data),
         })
         .then(r => { if (!r.ok) return safeJson(r).then(err => { throw err; }); return safeJson(r); })
-        .then(() => { closeEditModal(); window.location.reload(); })
+        .then(() => {
+            closeEditModal();
+            var boardModal = document.getElementById('kanbanBoardModal');
+            var boardOpen  = boardModal && !boardModal.classList.contains('hidden');
+            if (boardOpen && window._kanbanSprintId && typeof openKanbanBoard === 'function') {
+                openKanbanBoard(window._kanbanSprintId);
+            } else {
+                window.location.reload();
+            }
+        })
         .catch(error => {
             submitBtn.disabled    = false;
             submitBtn.textContent = origText;

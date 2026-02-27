@@ -91,6 +91,18 @@ window._taskStoreUrl       = '{{ route("tasks.store") }}';
 window._taskDestroyBaseUrl = '{{ route("tasks.destroy", "__ID__") }}';
 window._taskEditDataBaseUrl= '{{ route("tasks.editData", "__ID__") }}';
 window._taskUpdateBaseUrl  = '{{ route("tasks.update", "__ID__") }}';
+window._taskMoveUrl        = '{{ route("tasks.move", "__ID__") }}';
+window._projectPhases      = @json($project->phases ?? []);
+
+// ── HTML escape helper — used by kanban.js and project-tasks.js ──
+function escHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 // ── BOM-safe JSON parser ──
 function safeJson(r) {
@@ -104,4 +116,5 @@ function safeJson(r) {
 {{-- External JS files (order matters) ──────────────────────── --}}
 <script src="{{ asset('js/project-show.js') }}?v={{ filemtime(public_path('js/project-show.js')) }}"></script>
 <script src="{{ asset('js/project-tasks.js') }}?v={{ filemtime(public_path('js/project-tasks.js')) }}"></script>
+<script src="{{ asset('js/kanban.js') }}?v={{ filemtime(public_path('js/kanban.js')) }}"></script>
 <script src="{{ asset('js/project-team.js') }}?v={{ filemtime(public_path('js/project-team.js')) }}"></script>

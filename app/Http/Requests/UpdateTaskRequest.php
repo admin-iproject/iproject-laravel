@@ -53,6 +53,8 @@ class UpdateTaskRequest extends FormRequest
             // Additional
             'contact_id' => 'nullable|exists:contacts,id',
             'task_order' => 'nullable|integer',
+            'task_sprint'=> 'nullable|boolean',
+            'flagged'    => 'nullable|boolean',
 
             // Task Team — assigned in same PUT as update
             'team_members'   => 'nullable|array',
@@ -111,6 +113,14 @@ class UpdateTaskRequest extends FormRequest
         // Ensure duration is never null (DB column is NOT NULL)
         if (!$this->has('duration') || $this->duration === null || $this->duration === '') {
             $defaults['duration'] = 0;
+        }
+
+        // A child of a sprint task cannot itself be a sprint
+        if ($this->filled('parent_id')) {
+            $parent = \App\Models\Task::find($this->input('parent_id'));
+            if ($parent && $parent->task_sprint) {
+                $defaults['task_sprint'] = 0;
+            }
         }
 
         // Ensure budget columns are never null — DB has NOT NULL constraint

@@ -9,6 +9,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTeamController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TicketConfigController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -98,20 +100,61 @@ Route::middleware('auth')->group(function () {
     Route::put('tasks/{task}/team', [TaskController::class, 'updateTeam'])->name('tasks.updateTeam');
 
     // Task checklist
-    Route::get('tasks/{task}/checklist',                    [TaskController::class, 'getChecklist'])  ->name('tasks.getChecklist');
-    Route::post('tasks/{task}/checklist',                    [TaskController::class, 'addChecklistItem'])   ->name('tasks.addChecklistItem');
-    Route::put('tasks/{task}/checklist/{item}',              [TaskController::class, 'updateChecklistItem'])->name('tasks.updateChecklistItem');
-    Route::delete('tasks/{task}/checklist/{item}',           [TaskController::class, 'deleteChecklistItem'])->name('tasks.deleteChecklistItem');
-    Route::post('tasks/{task}/checklist/{item}/toggle',      [TaskController::class, 'toggleChecklistItem'])->name('tasks.toggleChecklistItem');
+    Route::get('tasks/{task}/checklist',                    [TaskController::class, 'getChecklist'])      ->name('tasks.getChecklist');
+    Route::post('tasks/{task}/checklist',                   [TaskController::class, 'addChecklistItem'])  ->name('tasks.addChecklistItem');
+    Route::put('tasks/{task}/checklist/{item}',             [TaskController::class, 'updateChecklistItem'])->name('tasks.updateChecklistItem');
+    Route::delete('tasks/{task}/checklist/{item}',          [TaskController::class, 'deleteChecklistItem'])->name('tasks.deleteChecklistItem');
+    Route::post('tasks/{task}/checklist/{item}/toggle',     [TaskController::class, 'toggleChecklistItem'])->name('tasks.toggleChecklistItem');
 
     // Task log (time tracking)
     Route::get('tasks/{task}/logs',          [TaskController::class, 'getLogs'])  ->name('tasks.logs');
     Route::post('tasks/{task}/log-time',     [TaskController::class, 'logTime'])  ->name('tasks.log-time');
     Route::delete('tasks/{task}/logs/{log}', [TaskController::class, 'deleteLog'])->name('tasks.log-delete');
 
+    // Kanban board
+    Route::get('tasks/{task}/kanban',  [TaskController::class, 'kanban'])  ->name('tasks.kanban');
+    Route::patch('tasks/{task}/move',  [TaskController::class, 'moveCard'])->name('tasks.move');
+
     // Task restore / force-delete
-    Route::post('tasks/{id}/restore',          [TaskController::class, 'restore'])    ->name('tasks.restore')->withTrashed();
-    Route::delete('tasks/{id}/force-delete',   [TaskController::class, 'forceDelete'])->name('tasks.force-delete');
+    Route::post('tasks/{id}/restore',        [TaskController::class, 'restore'])    ->name('tasks.restore')->withTrashed();
+    Route::delete('tasks/{id}/force-delete', [TaskController::class, 'forceDelete'])->name('tasks.force-delete');
+
+    // ── Tickets Module ────────────────────────────────────────────────
+    Route::prefix('tickets')->name('tickets.')->group(function () {
+        Route::get('/',                         [TicketController::class, 'index'])          ->name('index');
+        Route::post('/',                        [TicketController::class, 'store'])          ->name('store');
+        Route::get('/map-data',                 [TicketController::class, 'mapData'])        ->name('mapData');
+        Route::get('/sla-report',               [TicketController::class, 'slaReport'])      ->name('slaReport');
+        Route::get('/search-solutions',         [TicketController::class, 'searchSolutions'])->name('searchSolutions');
+        Route::get('/timesheet-data',           [TicketController::class, 'timesheetData'])  ->name('timesheetData');
+        Route::get('/{ticket}/edit-data',       [TicketController::class, 'editData'])       ->name('editData');
+        Route::get('/{ticket}/view-data',       [TicketController::class, 'viewData'])       ->name('viewData');
+        Route::post('/{ticket}/reply',          [TicketController::class, 'addReply'])       ->name('reply');
+        Route::post('/{ticket}/log-time',       [TicketController::class, 'logTime'])        ->name('logTime');
+        Route::put('/{ticket}',                 [TicketController::class, 'update'])         ->name('update');
+        Route::delete('/{ticket}',              [TicketController::class, 'destroy'])        ->name('destroy');
+    });
+
+
+    // ── Ticket Config ─────────────────────────────────────────────────
+    Route::prefix('ticket-config')->name('ticket-config.')->group(function () {
+        Route::get('/',                                [TicketConfigController::class, 'index'])             ->name('index');
+        Route::post('/statuses',                      [TicketConfigController::class, 'storeStatus'])       ->name('statuses.store');
+        Route::put('/statuses/{status}',              [TicketConfigController::class, 'updateStatus'])      ->name('statuses.update');
+        Route::delete('/statuses/{status}',           [TicketConfigController::class, 'destroyStatus'])     ->name('statuses.destroy');
+        Route::post('/priorities',                    [TicketConfigController::class, 'storePriority'])     ->name('priorities.store');
+        Route::put('/priorities/{priority}',          [TicketConfigController::class, 'updatePriority'])    ->name('priorities.update');
+        Route::delete('/priorities/{priority}',       [TicketConfigController::class, 'destroyPriority'])   ->name('priorities.destroy');
+        Route::post('/categories',                    [TicketConfigController::class, 'storeCategory'])     ->name('categories.store');
+        Route::put('/categories/{category}',          [TicketConfigController::class, 'updateCategory'])    ->name('categories.update');
+        Route::delete('/categories/{category}',       [TicketConfigController::class, 'destroyCategory'])   ->name('categories.destroy');
+        Route::post('/close-reasons',                 [TicketConfigController::class, 'storeCloseReason'])  ->name('close-reasons.store');
+        Route::put('/close-reasons/{closeReason}',    [TicketConfigController::class, 'updateCloseReason']) ->name('close-reasons.update');
+        Route::delete('/close-reasons/{closeReason}', [TicketConfigController::class, 'destroyCloseReason'])->name('close-reasons.destroy');
+        Route::post('/sla-policies',                  [TicketConfigController::class, 'storeSlaPolicy'])    ->name('sla-policies.store');
+        Route::put('/sla-policies/{slaPolicy}',       [TicketConfigController::class, 'updateSlaPolicy'])   ->name('sla-policies.update');
+        Route::delete('/sla-policies/{slaPolicy}',    [TicketConfigController::class, 'destroySlaPolicy'])  ->name('sla-policies.destroy');
+    });
 
     // Profile Routes
     Route::get('/profile',    [ProfileController::class, 'edit'])          ->name('profile.edit');

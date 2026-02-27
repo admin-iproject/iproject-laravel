@@ -18,6 +18,11 @@
         </button>
     </div>
     
+    
+    <?php if (! empty(trim($__env->yieldContent('sidebar-content')))): ?>
+        <?php echo $__env->yieldContent('sidebar-content'); ?>
+    <?php else: ?>
+
     <!-- VIEW Section -->
     <div class="py-2">
         <div class="sidebar-section-title">VIEW</div>
@@ -103,5 +108,7 @@
             <span class="sidebar-menu-item-text">Reports</span>
         </a>
     </div>
+
+    <?php endif; ?>
     
 </aside><?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/layouts/partials/left-sidebar.blade.php ENDPATH**/ ?>

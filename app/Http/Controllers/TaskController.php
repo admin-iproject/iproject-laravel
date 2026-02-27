@@ -210,6 +210,7 @@ class TaskController extends Controller
                 'milestone'         => (bool) $task->milestone,
                 'access'            => $task->access ?? 0,
                 'task_ignore_budget'=> (bool) $task->task_ignore_budget,
+                'task_sprint'       => (bool) $task->task_sprint,
             ],
             'taskTeam'    => $taskTeam,
             'projectTeam' => $projectTeam,
@@ -231,6 +232,18 @@ class TaskController extends Controller
             set_time_limit(30); // prevent runaway budget recalc from timing out
 
             $task->update($request->validated());
+
+            // Handle flag audit columns when flagged state sent from kanban edit
+            if ($request->has('flagged')) {
+                if ($request->input('flagged')) {
+                    $task->flagged_by = $task->flagged_by ?? auth()->id();
+                    $task->flagged_at = $task->flagged_at ?? now();
+                } else {
+                    $task->flagged_by = null;
+                    $task->flagged_at = null;
+                }
+                $task->saveQuietly();
+            }
 
             // Re-level if parent changed
             if ($request->filled('parent_id') && $task->parent_id != $originalParentId) {
@@ -552,6 +565,121 @@ class TaskController extends Controller
         }
         return back()->with('success', 'Checklist item updated.');
     }
+    // ── Kanban Board ──────────────────────────────────────────────
+
+    /**
+     * GET /tasks/{task}/kanban
+     * Returns sprint task metadata + all direct children as kanban cards.
+     */
+    public function kanban(Task $task)
+    {
+        $this->authorize('view', $task);
+
+        // Sprint summary
+        $sprint = [
+            'id'               => $task->id,
+            'name'             => $task->name,
+            'start_date'       => $task->start_date?->format('Y-m-d'),
+            'end_date'         => $task->end_date?->format('Y-m-d'),
+            'hours_worked'     => (float) ($task->hours_worked ?? 0),
+            'duration'         => (float) ($task->duration ?? 0),
+            'duration_type'    => $task->duration_type ?? 1,
+            'actual_budget'    => (float) ($task->actual_budget ?? 0),
+            'target_budget'    => (float) ($task->target_budget ?? 0),
+            'percent_complete' => $task->percent_complete ?? 0,
+        ];
+
+        // Load children (one level deep only — sprint cards)
+        $children = Task::where('parent_id', $task->id)
+            ->with(['team.user', 'checklist'])
+            ->orderBy('task_order')
+            ->orderBy('id')
+            ->get();
+
+        $cards = $children->map(function ($c) {
+            $checkTotal = $c->checklist->count();
+            $checkDone  = $c->checklist->filter(fn($i) => !is_null($i->checkedby))->count();
+
+            // Bubble-up is_overdue
+            $isOverdue = $c->end_date && $c->end_date->isPast() && ($c->percent_complete ?? 0) < 100;
+
+            return [
+                'id'               => $c->id,
+                'name'             => $c->name,
+                'description'      => $c->description,
+                'owner_id'         => $c->owner_id,
+                'task_assigned'    => $c->task_assigned,
+                'phase'            => $c->phase,
+                'flagged'          => (bool) $c->flagged,
+                'status'           => $c->status,
+                'priority'         => $c->priority ?? 5,
+                'percent_complete' => $c->percent_complete ?? 0,
+                'start_date'       => $c->start_date?->format('Y-m-d'),
+                'end_date'         => $c->end_date?->format('Y-m-d'),
+                'hours_worked'     => (float) ($c->hours_worked ?? 0),
+                'duration'         => (float) ($c->duration ?? 0),
+                'duration_type'    => $c->duration_type ?? 1,
+                'actual_budget'    => (float) ($c->actual_budget ?? 0),
+                'target_budget'    => (float) ($c->target_budget ?? 0),
+                'access'           => $c->access ?? 0,
+                'is_overdue'       => $isOverdue,
+                'checklist_total'  => $checkTotal,
+                'checklist_done'   => $checkDone,
+                'team'             => $c->team->map(fn($m) => [
+                    'user_id'  => $m->user_id,
+                    'name'     => trim(($m->user->first_name ?? '') . ' ' . ($m->user->last_name ?? '')),
+                    'initials' => strtoupper(substr($m->user->first_name ?? '?', 0, 1) . substr($m->user->last_name ?? '', 0, 1)),
+                    'is_owner' => (bool) ($m->is_owner ?? false),
+                ])->values(),
+            ];
+        })->values();
+
+        return response()->json(['success' => true, 'sprint' => $sprint, 'cards' => $cards]);
+    }
+
+    /**
+     * PATCH /tasks/{task}/move
+     * Kanban drag-drop: updates phase, flagged state, and optionally percent_complete.
+     */
+    public function moveCard(Request $request, Task $task)
+    {
+        $this->authorize('update', $task);
+
+        $validated = $request->validate([
+            'phase'            => 'nullable|integer',
+            'flagged'          => 'nullable|boolean',
+            'task_order'       => 'nullable|integer',
+            'percent_complete' => 'nullable|integer|between:0,100',
+            'priority'         => 'nullable|integer|between:0,10',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            if (array_key_exists('phase', $validated))    $task->phase      = $validated['phase'];
+            if (array_key_exists('flagged', $validated))  {
+                $task->flagged = $validated['flagged'] ? 1 : 0;
+                if ($validated['flagged']) {
+                    $task->flagged_by = auth()->id();
+                    $task->flagged_at = now();
+                } else {
+                    $task->flagged_by = null;
+                    $task->flagged_at = null;
+                }
+            }
+            if (array_key_exists('task_order', $validated))       $task->task_order       = $validated['task_order'];
+            if (array_key_exists('percent_complete', $validated)) $task->percent_complete = $validated['percent_complete'];
+            if (array_key_exists('priority', $validated))         $task->priority         = $validated['priority'];
+
+            $task->saveQuietly();
+            DB::commit();
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     // ── Task Log methods ──────────────────────────────────────────
 
     /**

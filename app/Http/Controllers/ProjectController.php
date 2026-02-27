@@ -161,7 +161,7 @@ class ProjectController extends Controller
                             'target_budget', 'actual_budget', 'task_ignore_budget', 'owner_id',
                             'milestone', 'flagged', 'flagged_by', 'flagged_at',
                             'hours_worked', 'duration', 'duration_type',
-                            'cost_code', 'phase', 'description', 'task_assigned',
+                            'cost_code', 'phase', 'description', 'task_assigned', 'task_sprint',
                             'task_order', 'last_edited', 'created_at', 'updated_at')
                     ->orderBy('task_order', 'asc')
                     ->orderBy('id', 'asc');

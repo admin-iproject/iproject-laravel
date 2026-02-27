@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Task extends Model
 {
@@ -246,14 +247,46 @@ class Task extends Model
 
         if (!$agg || $agg->child_count == 0) return;
 
-        // Budget
+        // Budget + hours
         $this->target_budget = (float) ($agg->total_target ?? 0);
         $this->actual_budget = (float) ($agg->total_actual ?? 0);
         $this->hours_worked  = (float) ($agg->total_hours  ?? 0);
 
-        // Dates: parent spans all children (children drive the range)
+        // Dates: parent spans all children
         if ($agg->min_start) $this->start_date = $agg->min_start;
         if ($agg->max_end)   $this->end_date   = $agg->max_end;
+
+        // Weighted percent_complete — weighted by each child's total team budget hours
+        // SUM(child.percent_complete × child.team_hours) / SUM(child.team_hours)
+        // Falls back to simple average if no team hours are set on any child
+        $children = Task::where('parent_id', $this->id)
+            ->where('id', '!=', $this->id)
+            ->select('id', 'percent_complete')
+            ->get();
+
+        $totalWeight  = 0;
+        $weightedSum  = 0;
+
+        foreach ($children as $child) {
+            $childHours = DB::table('task_team')
+                ->where('task_id', $child->id)
+                ->sum('hours');
+
+            $weight       = (float) $childHours;
+            $totalWeight += $weight;
+            $weightedSum += $weight * (float) ($child->percent_complete ?? 0);
+        }
+
+        if ($totalWeight > 0) {
+            // Weighted average by team hours
+            $this->percent_complete = (int) round($weightedSum / $totalWeight);
+        } else {
+            // Fallback: simple average when no team hours assigned
+            $simpleAvg = Task::where('parent_id', $this->id)
+                ->where('id', '!=', $this->id)
+                ->avg('percent_complete');
+            $this->percent_complete = (int) round($simpleAvg ?? 0);
+        }
 
         $this->saveQuietly();
     }

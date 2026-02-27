@@ -48,6 +48,7 @@ class StoreTaskRequest extends FormRequest
             // Additional
             'contact_id'         => 'nullable|exists:contacts,id',
             'task_order'         => 'nullable|integer',
+            'task_sprint'        => 'nullable|boolean',
 
             // Task Team — assigned in same POST as create
             'team_members'       => 'nullable|array',
@@ -105,6 +106,15 @@ class StoreTaskRequest extends FormRequest
         }
         if (!$this->has('task_ignore_budget')) $defaults['task_ignore_budget'] = 0;
         if (!$this->has('milestone'))          $defaults['milestone']          = 0;
+        if (!$this->has('task_sprint'))        $defaults['task_sprint']        = 0;
+
+        // A child of a sprint task cannot itself be a sprint
+        if ($this->filled('parent_id')) {
+            $parent = \App\Models\Task::find($this->input('parent_id'));
+            if ($parent && $parent->task_sprint) {
+                $defaults['task_sprint'] = 0;
+            }
+        }
 
         // Ensure budget columns are never null — DB has NOT NULL constraint
         if (!$this->filled('target_budget')) $defaults['target_budget'] = 0;

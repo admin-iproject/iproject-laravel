@@ -18,6 +18,17 @@
         </button>
     </div>
     
+    {{--
+        Two override modes for child views:
+        A) @section('sidebar-content') — replaces EVERYTHING below the title bar.
+           Used by modules with their own full nav structure (e.g. Tickets).
+        B) @section('sidebar-menu') — replaces only the MENU section items.
+           VIEW and REPORTS sections are preserved (e.g. Dashboard).
+    --}}
+    @hasSection('sidebar-content')
+        @yield('sidebar-content')
+    @else
+
     <!-- VIEW Section -->
     <div class="py-2">
         <div class="sidebar-section-title">VIEW</div>
@@ -103,5 +114,7 @@
             <span class="sidebar-menu-item-text">Reports</span>
         </a>
     </div>
+
+    @endif
     
 </aside>

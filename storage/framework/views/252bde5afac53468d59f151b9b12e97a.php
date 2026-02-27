@@ -40,22 +40,25 @@
                 </div>
             </header>
         <?php endif; ?>
-        
+
         <!-- Page Content -->
-        <main class="p-6">
-            <!-- Success/Error Messages -->
-            <?php if(session('success')): ?>
-                <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg">
-                    <?php echo e(session('success')); ?>
+        
+        <main class="<?php echo e(View::hasSection('full_width') ? 'p-0 h-[calc(100vh-var(--top-nav-height))] overflow-hidden' : 'p-6'); ?>">
+            <?php if (! (View::hasSection('full_width'))): ?>
+                <!-- Success/Error Messages -->
+                <?php if(session('success')): ?>
+                    <div class="mb-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg">
+                        <?php echo e(session('success')); ?>
 
-                </div>
-            <?php endif; ?>
-            
-            <?php if(session('error')): ?>
-                <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg">
-                    <?php echo e(session('error')); ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if(session('error')): ?>
+                    <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg">
+                        <?php echo e(session('error')); ?>
 
-                </div>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
             
             <!-- Main Content Slot -->
@@ -99,4 +102,5 @@
     <!-- Additional Scripts -->
     <?php echo $__env->yieldPushContent('scripts'); ?>
 </body>
-</html><?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/layouts/app.blade.php ENDPATH**/ ?>
+</html>
+<?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/layouts/app.blade.php ENDPATH**/ ?>

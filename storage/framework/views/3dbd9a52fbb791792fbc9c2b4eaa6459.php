@@ -1,125 +1,26 @@
 <!-- Top Navigation Bar with Folder Tab -->
 <nav class="top-nav-wrapper fixed top-0 left-0 right-0 z-50">
     
-    <!-- Logo Folder Tab (grey with curved corner) -->
+    <!-- Logo Folder Tab -->
     <div class="logo-folder-tab">
-    <a href="<?php echo e(route('dashboard')); ?>" class="flex items-center h-full">
-        <img src="/storage/SYSMYC_TRANS_CROP.png" alt="SYSMYC - Monitoring The Activity of Your Enterprise" width = 120px>
-    </a>
-	</div>
+        <a href="<?php echo e(route('dashboard')); ?>" class="flex items-center h-full">
+            <img src="/storage/SYSMYC_TRANS_CROP.png" alt="SYSMYC - Monitoring The Activity of Your Enterprise" width="120px">
+        </a>
+    </div>
     
     <!-- Brown Navigation Bar -->
     <div class="top-nav-brown">
         
         <div class="flex items-center space-x-1" style="margin-left: 270px;">
             
-            <!-- Left Side: Menu Items (with left margin to clear folder tab) -->
-            <div class="flex items-center space-x-1" >
-                
-                <!-- Dashboards Dropdown -->
-                <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                    <button @click="open = !open" class="top-nav-menu-item flex items-center space-x-1">
-                        <span>DASHBOARD</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                    <div x-show="open" 
-                         x-transition
-                         class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                        <a href="<?php echo e(route('dashboard')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Main Dashboard</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Project Dashboard</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ticket Dashboard</a>
-                    </div>
-                </div>
-                
-                <!-- Projects Dropdown -->
-                <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                    <button @click="open = !open" class="top-nav-menu-item flex items-center space-x-1">
-                        <span>PROJECTS</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                    <div x-show="open" 
-                         x-transition
-                         class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                        <a href="<?php echo e(route('projects.index')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">All Projects</a>
-                        <a href="<?php echo e(route('projects.index', ['owner' => Auth::id()])); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Projects</a>
-                        <a href="<?php echo e(route('projects.create')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Create Project</a>
-                        <hr class="my-1">
-                        <a href="<?php echo e(route('tasks.index')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">All Tasks</a>
-                        <a href="<?php echo e(route('tasks.index', ['owner_id' => Auth::id()])); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Tasks</a>
-                    </div>
-                </div>
-				
-                <!-- Tickets Dropdown -->
-                <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                    <button @click="open = !open" class="top-nav-menu-item flex items-center space-x-1">
-                        <span>TICKETS</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                    <div x-show="open" 
-                         x-transition
-                         class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Calendar</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Team Calendar</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Company Calendar</a>
-                    </div>
-                </div>
-				
-				<!-- Files Dropdown -->
-                <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                    <button @click="open = !open" class="top-nav-menu-item flex items-center space-x-1">
-                        <span>FILES</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                    <div x-show="open" 
-                         x-transition
-                         class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Calendar</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Team Calendar</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Company Calendar</a>
-                    </div>
-                </div>
-				
-                <!-- Calendar Dropdown -->
-                <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                    <button @click="open = !open" class="top-nav-menu-item flex items-center space-x-1">
-                        <span>CALENDAR</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                    <div x-show="open" 
-                         x-transition
-                         class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Calendar</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Team Calendar</a>
-                        <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Company Calendar</a>
-                    </div>
-                </div>
-                <!-- Users Dropdown -->
-            <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                <button @click="open = !open" class="top-nav-menu-item flex items-center space-x-1">
-                    <span>USERS</span>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </button>
-                <div x-show="open" 
-                     x-transition
-                     class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                    <a href="<?php echo e(route('users.index')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">All Users</a>
-                    <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Active Users</a>
-                    <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Inactive Users</a>
-                    <a href="<?php echo e(route('users.create')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Add New User</a>
-                </div>
-            </div>
+            <!-- Left Side: Direct Nav Links -->
+            <div class="flex items-center space-x-1">
+                <a href="<?php echo e(route('dashboard')); ?>"        class="top-nav-menu-item <?php echo e(request()->routeIs('dashboard') ? 'active' : ''); ?>">DASHBOARD</a>
+                <a href="<?php echo e(route('projects.index')); ?>"   class="top-nav-menu-item <?php echo e(request()->routeIs('projects.*') ? 'active' : ''); ?>">PROJECTS</a>
+                <a href="<?php echo e(route('tickets.index')); ?>"    class="top-nav-menu-item <?php echo e(request()->routeIs('tickets.*') ? 'active' : ''); ?>">TICKETS</a>
+                <a href="#"                               class="top-nav-menu-item <?php echo e(request()->routeIs('files.*') ? 'active' : ''); ?>">FILES</a>
+                <a href="#"                               class="top-nav-menu-item <?php echo e(request()->routeIs('calendar.*') ? 'active' : ''); ?>">CALENDAR</a>
+                <a href="<?php echo e(route('users.index')); ?>"      class="top-nav-menu-item <?php echo e(request()->routeIs('users.*') ? 'active' : ''); ?>">USERS</a>
             </div>
             
             <!-- Right Side: Search & Icons -->
@@ -167,8 +68,7 @@
                             <span class="text-sm font-medium text-white"><?php echo e(substr(Auth::user()->name, 0, 1)); ?></span>
                         </div>
                     </button>
-                    <div x-show="open" 
-                         x-transition
+                    <div x-show="open" x-transition
                          class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
                         <div class="px-4 py-2 border-b border-gray-200">
                             <p class="text-sm font-medium text-gray-900"><?php echo e(Auth::user()->name); ?></p>
@@ -176,20 +76,15 @@
                         </div>
                         <a href="<?php echo e(route('profile.edit')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile</a>
                         <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Settings</a>
-                        
-                        
                         <?php if(Auth::user()->hasRole('super_admin')): ?>
                             <a href="<?php echo e(route('companies.index')); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Companies</a>
                         <?php else: ?>
                             <a href="<?php echo e(route('companies.show', Auth::user()->company_id)); ?>" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Company</a>
                         <?php endif; ?>
-                        
                         <hr class="my-2">
                         <form method="POST" action="<?php echo e(route('logout')); ?>">
                             <?php echo csrf_field(); ?>
-                            <button type="submit" class="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">
-                                Logout
-                            </button>
+                            <button type="submit" class="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Logout</button>
                         </form>
                     </div>
                 </div>
@@ -200,7 +95,8 @@
         
     </div>
     
-    <!-- Thin Grey Strip (matches page background) -->
+    <!-- Thin Grey Strip -->
     <div class="top-nav-grey-strip"></div>
     
-</nav><?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/layouts/partials/top-nav.blade.php ENDPATH**/ ?>
+</nav>
+<?php /**PATH C:\iPROJECT\iproject-laravel-complete\iproject-laravel\resources\views/layouts/partials/top-nav.blade.php ENDPATH**/ ?>
