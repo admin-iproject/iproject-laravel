@@ -126,6 +126,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/map-data',                 [TicketController::class, 'mapData'])        ->name('mapData');
         Route::get('/sla-report',               [TicketController::class, 'slaReport'])      ->name('slaReport');
         Route::get('/search-solutions',         [TicketController::class, 'searchSolutions'])->name('searchSolutions');
+        Route::get('/projects',                     [TicketController::class, 'projects'])     ->name('projects');
+        Route::get('/projects/{projectId}/tasks',   [TicketController::class, 'projectTasks'])->name('tasks');
         Route::get('/timesheet-data',           [TicketController::class, 'timesheetData'])  ->name('timesheetData');
         Route::get('/{ticket}/edit-data',       [TicketController::class, 'editData'])       ->name('editData');
         Route::get('/{ticket}/view-data',       [TicketController::class, 'viewData'])       ->name('viewData');

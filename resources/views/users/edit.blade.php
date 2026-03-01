@@ -340,6 +340,11 @@
                                 >
                             </div>
                         </div>
+
+                        <!-- Hidden geocode fields (auto-populated on address blur) -->
+                        <input type="hidden" name="lat" id="user_lat" value="{{ old('lat', $user->lat) }}">
+                        <input type="hidden" name="lng" id="user_lng" value="{{ old('lng', $user->lng) }}">
+                        <div id="user-geocode-status" class="mt-1 text-xs text-gray-400"></div>
                     </div>
 
                     <!-- Additional Info -->
@@ -470,4 +475,51 @@
             </div>
         </div>
     </div>
+<script src="{{ asset('js/geocoder.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    async function userGeocodeAddress() {
+        const addr  = document.getElementById('address_line1')?.value?.trim();
+        const city  = document.getElementById('city')?.value?.trim();
+        const state = document.getElementById('state')?.value?.trim();
+        const zip   = document.getElementById('zip')?.value?.trim();
+        if (!addr && !city) return;
+
+        const status = document.getElementById('user-geocode-status');
+        if (status) { status.textContent = '📍 Locating…'; status.style.color = '#3b82f6'; }
+
+        const coords = window.geocodeAddress
+            ? await window.geocodeAddress(addr, city, state, zip)
+            : null;
+
+        if (coords) {
+            document.getElementById('user_lat').value = coords.lat;
+            document.getElementById('user_lng').value = coords.lng;
+            if (status) {
+                status.textContent = `📍 ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+                status.style.color = '#16a34a';
+            }
+        } else {
+            if (status) { status.textContent = '📍 Address not found'; status.style.color = '#f59e0b'; }
+        }
+    }
+
+    // Trigger geocode when user leaves any address field
+    ['address_line1','city','state','zip'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('blur', userGeocodeAddress);
+    });
+
+    // Show existing coords if already geocoded
+    const existingLat = document.getElementById('user_lat')?.value;
+    if (existingLat) {
+        const existingLng = document.getElementById('user_lng')?.value;
+        const status = document.getElementById('user-geocode-status');
+        if (status && existingLat) {
+            status.textContent = `📍 ${parseFloat(existingLat).toFixed(5)}, ${parseFloat(existingLng).toFixed(5)}`;
+            status.style.color = '#16a34a';
+        }
+    }
+});
+</script>
 </x-app-layout>

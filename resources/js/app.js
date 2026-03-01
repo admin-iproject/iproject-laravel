@@ -1,5 +1,6 @@
 import './bootstrap';
-import './navigation'; // Add this line
+import './navigation';
+import './tiptap';
 
 import Alpine from 'alpinejs';
 

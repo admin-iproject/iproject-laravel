@@ -234,6 +234,29 @@
                                class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                     <div>
+                        <label class="text-xs font-medium text-gray-600 block mb-1">Priority *</label>
+                        <select id="cfgSlaPriority"
+                                class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">— Any priority —</option>
+                            <option value="1">1 — Critical</option>
+                            <option value="2">2 — High</option>
+                            <option value="3">3 — Normal</option>
+                            <option value="4">4 — Low</option>
+                            <option value="5">5 — Minimal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-600 block mb-1">Ticket Type</label>
+                        <select id="cfgSlaTicketType"
+                                class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">— Any type —</option>
+                            <option value="incident">🔥 Incident</option>
+                            <option value="request">📋 Service Request</option>
+                            <option value="problem">🔍 Problem</option>
+                            <option value="change">🔄 Change Request</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="text-xs font-medium text-gray-600 block mb-1">First Response (minutes) *</label>
                         <input type="number" id="cfgSlaFirstResponse" min="1" value="60"
                                class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">

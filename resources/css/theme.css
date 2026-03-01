@@ -7,7 +7,7 @@
 :root {
     /* Sidebar Dimensions */
     --sidebar-width: 320px;
-    --sidebar-collapsed-width: 56px;
+    --sidebar-collapsed-width: 64px;
     --slideout-width: 450px;
     --topnav-height: 56px;
     
@@ -173,7 +173,7 @@
 .sidebar-menu-item {
     display: flex;
     align-items: center;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.5rem;
     color: var(--color-sidebar-text);
     transition: all var(--transition-speed) var(--transition-easing);
     cursor: pointer;

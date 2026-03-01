@@ -18,7 +18,7 @@ class Ticket extends Model
         'category_id', 'department_id', 'subject', 'body', 'mailbox_address',
         'reporter_id', 'reporter_email', 'reporter_name',
         'assignee_id', 'assigned_by', 'assigned_at',
-        'task_id', 'parent_ticket_id', 'close_reason_id', 'close_note',
+        'project_id', 'task_id', 'parent_ticket_id', 'close_reason_id', 'close_note',
         'sla_policy_id', 'resolve_by', 'first_response_at', 'first_response_breached',
         'resolved_at', 'resolution_breached', 'sla_paused_minutes', 'sla_paused_at',
         'lat', 'lng', 'location_accuracy', 'location_captured_at',
@@ -81,6 +81,11 @@ class Ticket extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function task(): BelongsTo
@@ -257,11 +262,10 @@ class Ticket extends Model
     public function getTypeIconAttribute(): string
     {
         return match($this->type) {
-            'incident' => '🔥',
-            'request'  => '📋',
-            'problem'  => '🔍',
-            'change'   => '🔄',
-            default    => '🎫',
+            'incident' => '<svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
+            'problem'  => '<svg class="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0118 0z"/></svg>',
+            'change'   => '<svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>',
+            default    => '<svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>',
         };
     }
 
@@ -275,12 +279,17 @@ class Ticket extends Model
     {
         $last = static::where('company_id', $companyId)
                       ->orderByDesc('id')
+                      ->lockForUpdate()
                       ->value('ticket_number');
 
-        if (!$last) return 'TK-00001';
+        $prefix = 'TK-' . str_pad($companyId, 2, '0', STR_PAD_LEFT) . '-';
 
-        $num = (int) substr($last, 3);
-        return 'TK-' . str_pad($num + 1, 5, '0', STR_PAD_LEFT);
+        if (!$last) return $prefix . '00001';
+
+        // Extract sequence from last segment (TK-21-00004 → 4)
+        $parts = explode('-', $last);
+        $seq   = (int) end($parts);
+        return $prefix . str_pad($seq + 1, 5, '0', STR_PAD_LEFT);
     }
 
     // Compute and set SLA deadline from policy

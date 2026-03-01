@@ -18,6 +18,12 @@ async function apiFetch(url, options = {}) {
     return fetch(url, Object.assign({}, defaults, options));
 }
 
+// Strips UTF-8 BOM (\uFEFF) before JSON.parse — fixes "Unexpected token '﻿'" errors
+async function safeJson(res) {
+    const text = await res.text();
+    return JSON.parse(text.replace(/^\uFEFF+/, ''));
+}
+
 function showModal(id)   { document.getElementById(id)?.classList.remove('hidden'); }
 function hideModal(id)   { document.getElementById(id)?.classList.add('hidden'); }
 function showEl(id)      { document.getElementById(id)?.classList.remove('hidden'); }
@@ -42,15 +48,251 @@ function slaColorClass(status) {
              none: 'bg-gray-100 text-gray-500' }[status] || 'bg-gray-100 text-gray-500';
 }
 
+// ── Ticket Type Icons (Heroicons w-5 h-5) ────────────────────────────
+
+const _typeIcons = {
+    request: `<svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>`,
+    incident: `<svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+               </svg>`,
+    problem:  `<svg class="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0118 0z"/>
+               </svg>`,
+    change:   `<svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+               </svg>`,
+};
+
+function typeIcon(type) {
+    return _typeIcons[type] || _typeIcons.request;
+}
+
+// Type picker for create/edit modal
+function ctPickType(type) {
+    document.getElementById('ctTypeInput').value = type;
+    document.querySelectorAll('#ctTypePicker .ct-type-btn').forEach(btn => {
+        const active = btn.dataset.type === type;
+        const colors = {
+            request:  ['bg-blue-50',   'border-blue-400',   'text-blue-700'],
+            incident: ['bg-red-50',    'border-red-400',    'text-red-700'],
+            problem:  ['bg-purple-50', 'border-purple-400', 'text-purple-700'],
+            change:   ['bg-amber-50',  'border-amber-400',  'text-amber-700'],
+        };
+        const [bg, border, text] = colors[btn.dataset.type];
+        btn.classList.toggle(bg,     active);
+        btn.classList.toggle(border, active);
+        btn.classList.toggle(text,   active);
+        btn.classList.toggle('bg-white',        !active);
+        btn.classList.toggle('border-gray-300', !active);
+        btn.classList.toggle('text-gray-600',   !active);
+    });
+}
+
 // ── Create Ticket ─────────────────────────────────────────────────────
+
+// ── Tiptap rich editor instances ─────────────────────────────────────
+let createEditor = null;
+let replyEditor  = null;
+
+function initCreateEditor() {
+    if (createEditor) return;
+    if (!window.createTiptapEditor) {
+        console.error('Tiptap not available - ensure resources/js/tiptap.js is built via Vite');
+        return;
+    }
+    createEditor = window.createTiptapEditor('createEditorEl', {
+        placeholder: 'Describe the issue in detail. You can paste screenshots directly into this editor…',
+        onUpdate(html) {
+            const hidden = document.getElementById('createBodyHidden');
+            if (hidden) hidden.value = html;
+        },
+    });
+}
+
+function initReplyEditor() {
+    if (replyEditor) return;
+    if (!window.createTiptapEditor) return;
+    replyEditor = window.createTiptapEditor('replyEditorEl', {
+        placeholder: 'Type your reply… paste screenshots directly',
+        onUpdate(html) {
+            const hidden = document.getElementById('replyBody');
+            if (hidden) hidden.value = html;
+        },
+    });
+}
+
+function insertReplyLink() {
+    const url = prompt('Enter URL:');
+    if (url) replyEditor?.chain().focus().setLink({ href: url }).run();
+}
 
 function openCreateTicketModal() {
     document.getElementById('createTicketForm')?.reset();
     hideEl('solutionSuggestions');
-    document.getElementById('locationStatus').textContent = 'Not captured';
+
+    // Auto-populate reporter from session user
+    const u = window._ticketAuthUser || {};
+    const emailEl = document.getElementById('createReporterEmail');
+    const nameEl  = document.getElementById('createReporterName');
+    if (emailEl && !emailEl.value) emailEl.value = u.email || '';
+    if (nameEl  && !nameEl.value)  nameEl.value  = u.name  || '';
+
+    // Auto-select user's department
+    if (u.departmentId) {
+        const deptSel = document.getElementById('createDeptSelect');
+        if (deptSel) deptSel.value = u.departmentId;
+    }
+
+    // Reset location — try geo fallback silently
     document.getElementById('createLat').value = '';
     document.getElementById('createLng').value = '';
+    document.getElementById('locationStatus').textContent = 'Not captured';
+    autoFillLocation();
+
+    // Reset link-project panel
+    closeLinkProject();
+    document.getElementById('createProjectSelect').innerHTML = '<option value="">— Select project —</option>';
+    document.getElementById('createTaskSelect').innerHTML    = '<option value="">— Select project first —</option>';
+    document.getElementById('createTaskSelect').disabled     = true;
+    document.getElementById('createTaskFromTicketBtn').disabled = true;
+    document.getElementById('linkProjectBadge').classList.add('hidden');
+
     showModal('createTicketModal');
+
+    // Init Tiptap after modal is visible
+    setTimeout(() => {
+        initCreateEditor();
+        if (createEditor) createEditor.commands.clearContent();
+        const hidden = document.getElementById('createBodyHidden');
+        if (hidden) hidden.value = '';
+        // Load projects in background
+        loadProjectsForTicket();
+    }, 50);
+}
+
+// ── Auto-fill location (geo → dept address → user address → give up) ──
+function autoFillLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                document.getElementById('createLat').value = pos.coords.latitude;
+                document.getElementById('createLng').value = pos.coords.longitude;
+                document.getElementById('locationStatus').textContent =
+                    pos.coords.latitude.toFixed(4) + ', ' + pos.coords.longitude.toFixed(4);
+            },
+            () => { tryDeptOrUserAddress(); },
+            { timeout: 4000 }
+        );
+    } else {
+        tryDeptOrUserAddress();
+    }
+}
+
+function tryDeptOrUserAddress() {
+    // Try dept address from selected dept option data attrs
+    const deptSel = document.getElementById('createDeptSelect');
+    const opt     = deptSel?.selectedOptions[0];
+    if (opt && opt.dataset.lat && opt.dataset.lng) {
+        document.getElementById('createLat').value = opt.dataset.lat;
+        document.getElementById('createLng').value = opt.dataset.lng;
+        document.getElementById('locationStatus').textContent = opt.dataset.address || 'Department address';
+        return;
+    }
+    if (opt && opt.dataset.address && opt.dataset.address.trim()) {
+        document.getElementById('locationStatus').textContent = opt.dataset.address;
+        return;
+    }
+    // Fallback to user profile address
+    const addr = (window._ticketAuthUser || {}).address;
+    if (addr && addr.trim()) {
+        document.getElementById('locationStatus').textContent = addr;
+    }
+}
+
+// ── Link-to-project panel ─────────────────────────────────────────────
+function toggleLinkProject() {
+    const body    = document.getElementById('linkProjectBody');
+    const chevron = document.getElementById('linkProjectChevron');
+    const isOpen  = !body.classList.contains('hidden');
+    if (isOpen) {
+        body.classList.add('hidden');
+        chevron.style.transform = '';
+    } else {
+        body.classList.remove('hidden');
+        chevron.style.transform = 'rotate(180deg)';
+    }
+}
+function closeLinkProject() {
+    document.getElementById('linkProjectBody')?.classList.add('hidden');
+    const chevron = document.getElementById('linkProjectChevron');
+    if (chevron) chevron.style.transform = '';
+}
+
+async function loadProjectsForTicket() {
+    if (!window._ticketProjectsUrl) return;
+    const sel    = document.getElementById('createProjectSelect');
+    const loader = document.getElementById('projectSelectLoader');
+    if (!sel) return;
+    loader?.classList.remove('hidden');
+    try {
+        const res  = await apiFetch(window._ticketProjectsUrl);
+        const json = await safeJson(res);
+        if (json.projects) {
+            sel.innerHTML = '<option value="">— Select project —</option>' +
+                json.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+    } catch(e) { /* silent */ }
+    finally { loader?.classList.add('hidden'); }
+}
+
+async function loadTasksForProject(projectId) {
+    const sel    = document.getElementById('createTaskSelect');
+    const loader = document.getElementById('taskSelectLoader');
+    const btn    = document.getElementById('createTaskFromTicketBtn');
+    if (!sel) return;
+
+    sel.innerHTML = '<option value="">— Loading… —</option>';
+    sel.disabled  = true;
+    btn.disabled  = true;
+
+    if (!projectId) {
+        sel.innerHTML = '<option value="">— Select project first —</option>';
+        return;
+    }
+
+    loader?.classList.remove('hidden');
+    try {
+        const url  = window._ticketTasksUrl.replace('__PID__', projectId);
+        const res  = await apiFetch(url);
+        const json = await safeJson(res);
+        if (json.tasks) {
+            sel.innerHTML = '<option value="">— No task —</option>' +
+                json.tasks.map(t => `<option value="${t.id}">${t.indent || ''}${t.name}</option>`).join('');
+            sel.disabled = false;
+            btn.disabled = false;
+            document.getElementById('linkProjectBadge').classList.remove('hidden');
+        }
+    } catch(e) {
+        sel.innerHTML = '<option value="">— Failed to load —</option>';
+    } finally {
+        loader?.classList.add('hidden');
+    }
+}
+
+function openCreateTaskFromTicket() {
+    // Placeholder — passes subject to a simplified task create flow
+    const subject = document.getElementById('createSubject')?.value || '';
+    const projId  = document.getElementById('createProjectSelect')?.value;
+    if (!projId) { alert('Please select a project first.'); return; }
+    // TODO: wire up to project task create modal when integrated
+    alert('Create Task from Ticket will be wired up in the next session. Project: ' + projId);
+}
+
+function insertCreateLink() {
+    const url = prompt('Enter URL:');
+    if (url) createEditor?.chain().focus().setLink({ href: url }).run();
 }
 
 function closeCreateTicketModal() { hideModal('createTicketModal'); }
@@ -62,6 +304,13 @@ async function submitCreateTicket() {
     const msg     = document.getElementById('createTicketMsg');
 
     const data = formDataToJson(form);
+    // Sync Tiptap content to hidden textarea before reading form
+    if (createEditor) {
+        const html = createEditor.getHTML();
+        const hidden = document.getElementById('createBodyHidden');
+        if (hidden) hidden.value = html;
+    }
+
     if (!data.subject || !data.body || !data.reporter_email || !data.status_id) {
         showMsg(msg, 'Please fill in all required fields.', 'error');
         return;
@@ -72,7 +321,7 @@ async function submitCreateTicket() {
 
     try {
         const res  = await apiFetch(window._ticketStoreUrl, { method: 'POST', body: JSON.stringify(data) });
-        const json = await res.json();
+        const json = await safeJson(res);
         if (json.success) {
             closeCreateTicketModal();
             prependTicketRow(json.ticket);
@@ -101,7 +350,7 @@ async function openEditTicketModal(ticketId) {
 
     try {
         const res  = await apiFetch(`${ticketUrl(ticketId)}/edit-data`);
-        const json = await res.json();
+        const json = await safeJson(res);
         if (!json.success) throw new Error(json.message);
 
         const t = json.ticket;
@@ -152,7 +401,7 @@ async function submitEditTicket() {
             method: 'POST',
             body: JSON.stringify({ ...data, _method: 'PUT' }),
         });
-        const json = await res.json();
+        const json = await safeJson(res);
         if (json.success) {
             closeEditTicketModal();
             updateTicketRow(json.ticket);
@@ -174,14 +423,29 @@ let _viewTicketId = null;
 
 async function openViewTicketModal(ticketId) {
     _viewTicketId = ticketId;
+
+    // Position modal to fill exact content area (right of sidebar, below top nav)
+    const modal   = document.getElementById('viewTicketModal');
+    const sidebar = document.querySelector('aside, nav[class*="sidebar"], [id*="sidebar"], .sidebar');
+    const topnav  = document.querySelector('header, nav[class*="top"], [id*="topnav"], [id*="navbar"], .navbar');
+    if (modal) {
+        const sidebarW = sidebar ? sidebar.getBoundingClientRect().width : 64;
+        const navH     = topnav  ? topnav.getBoundingClientRect().height : 56;
+        modal.style.left   = sidebarW + 'px';
+        modal.style.top    = navH + 'px';
+    }
+
     showModal('viewTicketModal');
     showEl('viewTicketLoading');
     hideEl('viewTicketContent');
     switchViewTab('details');
 
+    // Init reply Tiptap editor
+    setTimeout(() => initReplyEditor(), 50);
+
     try {
         const res  = await apiFetch(`${ticketUrl(ticketId)}/view-data`);
-        const json = await res.json();
+        const json = await safeJson(res);
         if (!json.success) throw new Error();
 
         const t = json.ticket;
@@ -210,7 +474,7 @@ function populateViewModal(t) {
     setText('timeTotal',        t.total_hours + 'h');
 
     // Type icon
-    setText('viewTypeIcon', t.type_icon);
+    setHtml('viewTypeIcon', typeIcon(t.type));
 
     // Status badge
     const sb = document.getElementById('viewStatusBadge');
@@ -268,20 +532,45 @@ function populateViewModal(t) {
     setText('viewFirstResponse',  t.first_response_at ? new Date(t.first_response_at).toLocaleString() : 'Pending');
     setText('viewResolvedAt',     t.resolved_at     ? new Date(t.resolved_at).toLocaleString()     : 'Open');
 
+    // Linked project
+    if(t.project) {
+        showEl('viewProjectSection');
+        const pl = document.getElementById('viewProjectLink');
+        if(pl) { pl.textContent = t.project.name || 'View Project'; pl.href = `/projects/${t.project.id}`; }
+    } else {
+        hideEl('viewProjectSection');
+    }
+
+    // ── Populate sidebar selects ──────────────────────────────────────
+    setSelectVal('sidebarStatus',   t.status_id);
+    setSelectVal('sidebarPriority', t.priority);
+    setSelectVal('sidebarType',     t.type);
+    setSelectVal('sidebarCategory', t.category_id || '');
+    setSelectVal('sidebarDept',     t.department_id || '');
+    setSelectVal('sidebarAssignee', t.assignee_id || '');
+
+    // Build dept-filtered assignee list then set value
+    buildAssigneeOptions(t.department_id, t.assignee_id);
+
+    // Linked project
+    if(t.project) {
+        showEl('viewProjectSection');
+        const pl = document.getElementById('viewProjectLink');
+        if(pl) { pl.textContent = t.project.name || 'View Project'; pl.href = `/projects/${t.project.id}`; }
+    } else { hideEl('viewProjectSection'); }
+
     // Linked task
     if(t.task) {
         showEl('viewTaskSection');
         const tl = document.getElementById('viewTaskLink');
-        if(tl) { tl.textContent = t.task.task_name || 'View Task'; tl.href = `/tasks/${t.task.id}`; }
-    } else {
-        hideEl('viewTaskSection');
-    }
+        if(tl) { tl.textContent = t.task.name || t.task.task_name || 'View Task'; tl.href = `/tasks/${t.task.id}`; }
+    } else { hideEl('viewTaskSection'); }
 
     // Replies
     renderReplies(t.replies || []);
 
     // Time logs
-    renderTimeLogs(t.ticket_logs || [], t.total_hours, t.total_cost);
+    renderTimeLogs(t.logs || [], t.total_hours, t.total_cost);
 
     // Assets
     renderAssets(t.assets || []);
@@ -297,9 +586,135 @@ function switchViewTab(name) {
     if(content) { content.style.display = 'flex'; content.classList.remove('hidden'); }
 }
 
-function closeViewTicketModal() { hideModal('viewTicketModal'); _viewTicketId = null; }
+function closeViewTicketModal() {
+    hideModal('viewTicketModal');
+    _viewTicketId = null;
+    // Destroy reply editor so it reinits fresh next open
+    if (replyEditor) { replyEditor.destroy(); replyEditor = null; }
+}
+
+// ── Sidebar helpers ───────────────────────────────────────────────────
+
+function setSelectVal(id, val) {
+    const el = document.getElementById(id);
+    if (el && val !== null && val !== undefined) el.value = val;
+}
+
+function buildAssigneeOptions(deptId, currentAssigneeId) {
+    const sel    = document.getElementById('sidebarAssignee');
+    if (!sel) return;
+    const agents = window._ticketAgents || [];
+    const filtered = deptId
+        ? agents.filter(a => !a.department_id || String(a.department_id) === String(deptId))
+        : agents;
+    sel.innerHTML = '<option value="">— Unassigned —</option>' +
+        filtered.map(a => `<option value="${a.id}" ${String(a.id) === String(currentAssigneeId) ? 'selected' : ''}>${a.name}</option>`).join('');
+}
+
+function onSidebarDeptChange(deptId) {
+    // Save dept first
+    patchTicketField('department_id', deptId || null);
+    // Rebuild assignee list filtered to new dept, reset assignee
+    buildAssigneeOptions(deptId, null);
+}
+
+// ── Inline patch (single-field PATCH) ────────────────────────────────
+const _patchDebounce = {};
+async function patchTicketField(field, value) {
+    if (!_viewTicketId) return;
+    const selId = {
+        status_id: 'sidebarStatus', priority: 'sidebarPriority',
+        type: 'sidebarType', category_id: 'sidebarCategory',
+        department_id: 'sidebarDept', assignee_id: 'sidebarAssignee',
+    }[field];
+    const selEl     = selId ? document.getElementById(selId) : null;
+    const statusEl  = document.getElementById('sidebarSaveStatus');
+
+    if (selEl) { selEl.classList.add('saving'); selEl.classList.remove('saved','err'); }
+
+    // Debounce rapid changes (e.g. fast select)
+    clearTimeout(_patchDebounce[field]);
+    _patchDebounce[field] = setTimeout(async () => {
+        try {
+            const payload = { [field]: value === '' ? null : value };
+            const res  = await apiFetch(ticketUrl(_viewTicketId), {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            });
+            const json = await safeJson(res);
+            if (json.success !== false) {
+                if (selEl) { selEl.classList.remove('saving'); selEl.classList.add('saved'); }
+                // Flash save indicator
+                if (statusEl) {
+                    statusEl.textContent = '✓ Saved';
+                    statusEl.className = 'text-xs text-center py-1 px-2 rounded-lg bg-green-50 text-green-600';
+                    statusEl.classList.remove('hidden');
+                    setTimeout(() => statusEl.classList.add('hidden'), 1800);
+                }
+                // Update header badges if status/priority changed
+                if (field === 'status_id' && json.ticket?.status) {
+                    const sb = document.getElementById('viewStatusBadge');
+                    if (sb) {
+                        sb.textContent      = json.ticket.status.name;
+                        sb.style.background = json.ticket.status.color + '22';
+                        sb.style.color      = json.ticket.status.color;
+                    }
+                }
+                if (field === 'priority' && json.ticket?.priority_name) {
+                    const pb = document.getElementById('viewPriorityBadge');
+                    if (pb) {
+                        pb.textContent      = json.ticket.priority_name;
+                        pb.style.background = json.ticket.priority_color + '22';
+                        pb.style.color      = json.ticket.priority_color;
+                    }
+                }
+                // Refresh row in ticket list
+                if (json.ticket) updateTicketRow(json.ticket);
+                // Append activity reply to replies list
+                if (json.activity_reply) appendActivityReply(json.activity_reply);
+            } else {
+                throw new Error(json.message || 'Save failed');
+            }
+        } catch(e) {
+            if (selEl) { selEl.classList.remove('saving'); selEl.classList.add('err'); }
+            if (statusEl) {
+                statusEl.textContent = '✗ ' + (e.message || 'Error');
+                statusEl.className = 'text-xs text-center py-1 px-2 rounded-lg bg-red-50 text-red-600';
+                statusEl.classList.remove('hidden');
+                setTimeout(() => statusEl.classList.add('hidden'), 3000);
+            }
+        }
+    }, 300);
+}
 
 // ── Replies ───────────────────────────────────────────────────────────
+
+function appendActivityReply(r) {
+    const list = document.getElementById('repliesList');
+    if (!list) return;
+    // Remove empty-state message if present
+    const empty = list.querySelector('p.text-center');
+    if (empty) empty.remove();
+    const el = document.createElement('div');
+    el.className = 'flex gap-2 items-start py-1.5 px-2 rounded-lg bg-gray-50 border border-gray-100';
+    const initials = (r.author_initials || '?').toUpperCase();
+    el.innerHTML = `
+        <div class="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5">
+            ${initials}
+        </div>
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-medium text-gray-500">${r.author_display_name || 'System'}</span>
+                <span class="text-xs text-gray-300">Just now</span>
+            </div>
+            <div class="text-xs text-gray-500 mt-0.5">${r.body}</div>
+        </div>`;
+    list.appendChild(el);
+    list.scrollTop = list.scrollHeight;
+    // Update reply count badge
+    const countEl = document.getElementById('replyCount');
+    if (countEl) countEl.textContent = (parseInt(countEl.textContent || '0') + 1);
+}
 
 function renderReplies(replies) {
     const list = document.getElementById('repliesList');
@@ -323,12 +738,17 @@ function renderReplies(replies) {
 }
 
 async function submitReply() {
+    // Sync Tiptap content to hidden textarea
+    if (replyEditor) {
+        const hidden = document.getElementById('replyBody');
+        if (hidden) hidden.value = replyEditor.getHTML();
+    }
     const body      = document.getElementById('replyBody').value.trim();
     const isPublic  = document.getElementById('replyIsPublic').checked;
     const btn       = document.getElementById('submitReplyBtn');
     const spinner   = document.getElementById('replySpinner');
 
-    if(!body) return;
+    if(!body || body === '<p></p>') return;
     btn.disabled = true;
     spinner.classList.remove('hidden');
 
@@ -337,9 +757,10 @@ async function submitReply() {
             method: 'POST',
             body: JSON.stringify({ body, is_public: isPublic }),
         });
-        const json = await res.json();
+        const json = await safeJson(res);
         if(json.success) {
             document.getElementById('replyBody').value = '';
+            if (replyEditor) replyEditor.commands.clearContent();
             // Append reply to list
             const list = document.getElementById('repliesList');
             const r    = json.reply;
@@ -410,7 +831,7 @@ async function submitTimeLog() {
             method: 'POST',
             body: JSON.stringify({ hours, logged_at: loggedAt, description, cost_code: costCode }),
         });
-        const json = await res.json();
+        const json = await safeJson(res);
         if(json.success) {
             document.getElementById('logHours').value       = '';
             document.getElementById('logDescription').value = '';
@@ -458,7 +879,7 @@ function renderAssets(assets) {
 function confirmDeleteTicket(id, number) {
     if(!confirm(`Delete ticket ${number}? This cannot be undone.`)) return;
     apiFetch(ticketUrl(id), { method: 'DELETE' })
-        .then(r => r.json())
+        .then(r => safeJson(r))
         .then(json => {
             if(json.success) {
                 document.querySelector(`tr[data-ticket-id="${id}"]`)?.remove();
@@ -482,9 +903,11 @@ function captureLocation() {
         pos => {
             document.getElementById('createLat').value = pos.coords.latitude;
             document.getElementById('createLng').value = pos.coords.longitude;
-            status.textContent = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+            status.textContent = pos.coords.latitude.toFixed(4) + ', ' + pos.coords.longitude.toFixed(4);
         },
-        () => { status.textContent = 'Permission denied or unavailable.'; }
+        () => {
+            tryDeptOrUserAddress();
+        }
     );
 }
 
@@ -496,7 +919,7 @@ const debouncedSolutionSearch = debounce(async (query) => {
     if(!query || query.length < 4) { box?.classList.add('hidden'); return; }
 
     const res  = await apiFetch(`${window._ticketSolutionUrl}?q=${encodeURIComponent(query)}`);
-    const json = await res.json();
+    const json = await safeJson(res);
     if(!json.solutions?.length) { box?.classList.add('hidden'); return; }
 
     list.innerHTML = json.solutions.map(s => `
@@ -511,8 +934,8 @@ const debouncedSolutionSearch = debounce(async (query) => {
 
 // ── Map Modal ─────────────────────────────────────────────────────────
 
-let _map = null;
-let _mapMarkers = [];
+let _map        = null;
+let _clusterGroup = null;   // MarkerClusterGroup — replaces _mapMarkers
 let _allMapData = [];
 
 const PRIORITY_COLORS = { 1: '#dc2626', 2: '#ea580c', 3: '#ca8a04', 4: '#16a34a' };
@@ -524,6 +947,47 @@ function openMapModal() {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(_map);
+
+        // ── Cluster group — color bubble by highest priority in cluster ──
+        _clusterGroup = L.markerClusterGroup({
+            maxClusterRadius: 40,          // px — tighter clusters
+            spiderfyOnMaxZoom: true,       // fan out at max zoom
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            iconCreateFunction: function(cluster) {
+                const markers  = cluster.getAllChildMarkers();
+                // Find the highest priority (lowest number) in the cluster
+                const topPriority = markers.reduce((best, m) => {
+                    const p = m.options._priority || 5;
+                    return p < best ? p : best;
+                }, 5);
+                const color = PRIORITY_COLORS[topPriority] || '#6b7280';
+                const count = cluster.getChildCount();
+                // Size scales with count
+                const size  = count < 10 ? 34 : count < 50 ? 42 : 50;
+                return L.divIcon({
+                    html: `<div style="
+                        background:${color};
+                        color:#fff;
+                        width:${size}px;
+                        height:${size}px;
+                        border-radius:50%;
+                        border:3px solid rgba(255,255,255,0.8);
+                        box-shadow:0 2px 8px rgba(0,0,0,0.35);
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        font-size:${size < 42 ? 12 : 14}px;
+                        font-weight:700;
+                        font-family:system-ui,sans-serif;
+                    ">${count}</div>`,
+                    className: '',
+                    iconSize: [size, size],
+                    iconAnchor: [size/2, size/2],
+                });
+            },
+        });
+        _map.addLayer(_clusterGroup);
     }
     loadMapData();
 }
@@ -534,7 +998,7 @@ async function loadMapData() {
     showEl('mapLoading');
     try {
         const res  = await apiFetch(window._ticketMapUrl);
-        const json = await res.json();
+        const json = await safeJson(res);
         _allMapData = json.tickets || [];
         renderMapMarkers(_allMapData);
     } catch(e) {
@@ -545,36 +1009,34 @@ async function loadMapData() {
 }
 
 function renderMapMarkers(tickets) {
-    _mapMarkers.forEach(m => m.remove());
-    _mapMarkers = [];
+    _clusterGroup.clearLayers();
     if (!tickets.length) { setText('mapTicketCount', 0); return; }
 
     const bounds = [];
     tickets.forEach(t => {
-        const color  = PRIORITY_COLORS[t.priority] || '#6b7280';
-        const icon   = L.divIcon({
+        const color = PRIORITY_COLORS[t.priority] || '#6b7280';
+        const icon  = L.divIcon({
             html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)"></div>`,
             className: '', iconSize: [14,14], iconAnchor: [7,7],
         });
-        const marker = L.marker([t.lat, t.lng], { icon })
+        const marker = L.marker([t.lat, t.lng], { icon, _priority: t.priority })
             .bindPopup(`
                 <div style="min-width:200px">
                     <div style="font-size:12px;color:#6b7280;font-family:monospace">${t.ticket_number}</div>
                     <div style="font-weight:600;font-size:13px;margin:2px 0">${t.subject}</div>
-                    <div style="font-size:11px;color:#6b7280">${t.type_icon} ${t.type_label} · ${t.priority_name}</div>
+                    <div style="font-size:11px;color:#6b7280">${t.type_label} · ${t.priority_name}</div>
                     <div style="font-size:11px;margin-top:4px"><span style="background:${t.status_color}22;color:${t.status_color};padding:1px 6px;border-radius:9999px">${t.status}</span></div>
                     ${t.assignee ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">👤 ${t.assignee}</div>` : ''}
                     <div style="font-size:11px;color:#9ca3af;margin-top:2px">${t.age}</div>
                     <a href="#" onclick="event.preventDefault();closeMapModal();openViewTicketModal(${t.id})"
                        style="display:inline-block;margin-top:6px;font-size:11px;color:#3b82f6;text-decoration:underline">View ticket →</a>
                 </div>
-            `)
-            .addTo(_map);
-        _mapMarkers.push(marker);
+            `);
+        _clusterGroup.addLayer(marker);
         bounds.push([t.lat, t.lng]);
     });
 
-    if(bounds.length) _map.fitBounds(bounds, { padding: [40, 40] });
+    if (bounds.length) _map.fitBounds(bounds, { padding: [40, 40] });
     setText('mapTicketCount', tickets.length);
     setTimeout(() => _map.invalidateSize(), 100);
 }
@@ -602,7 +1064,7 @@ async function loadSlaReport() {
 
     try {
         const res  = await apiFetch(`${window._ticketSlaUrl}?days=${days}`);
-        const json = await res.json();
+        const json = await safeJson(res);
 
         setText('slaTotal', json.total);
 
@@ -671,7 +1133,7 @@ async function loadWorkloadChart() {
     showEl('workloadLoading'); hideEl('workloadContent');
     try {
         const res  = await apiFetch(`${window._ticketSlaUrl}?days=30`);
-        const json = await res.json();
+        const json = await safeJson(res);
         const agents = json.by_agent || [];
 
         if(_workloadChart) _workloadChart.destroy();
@@ -725,7 +1187,7 @@ async function loadTrendChart() {
 
     try {
         const res  = await apiFetch(`${window._ticketSlaUrl}?days=${days}`);
-        const json = await res.json();
+        const json = await safeJson(res);
         const trend = json.trend || [];
 
         if(_trendChart) _trendChart.destroy();
@@ -768,7 +1230,7 @@ async function loadTimesheet() {
 
     try {
         const res  = await apiFetch(`${window._ticketTimesheetUrl}?agent_id=${agentId}&from=${from}&to=${to}`);
-        const json = await res.json();
+        const json = await safeJson(res);
 
         setText('timesheetAgentName', json.agent);
         setText('timesheetPeriod',    `${json.from} — ${json.to}`);
@@ -816,7 +1278,7 @@ function closeKnowledgeBaseModal() { hideModal('knowledgeBaseModal'); }
 const debouncedKbSearch = debounce(async (q) => {
     if(q.length < 2) { showEl('kbEmpty'); setHtml('kbList',''); return; }
     const res  = await apiFetch(`${window._ticketSolutionUrl}?q=${encodeURIComponent(q)}`);
-    const json = await res.json();
+    const json = await safeJson(res);
     hideEl('kbEmpty');
     if(!json.solutions?.length) {
         setHtml('kbList', '<p class="text-center text-gray-400 text-sm py-8">No solutions found.</p>');
@@ -839,7 +1301,7 @@ async function openKbSolution(id) {
     setHtml('kbDetailBody', '');
 
     const res  = await apiFetch(`${window._ticketSolutionUrl}?id=${id}`);
-    const json = await res.json();
+    const json = await safeJson(res);
     if(json.solution) {
         setText('kbDetailTitle', json.solution.title);
         setHtml('kbDetailBody',  json.solution.body);
@@ -921,7 +1383,7 @@ function buildRowHtml(t) {
     return `
         <td class="px-4 py-3 whitespace-nowrap">
             <div class="flex items-center gap-1.5">
-                <span class="text-base">${t.type_icon}</span>
+                ${typeIcon(t.type)}
                 <span class="font-mono text-xs font-semibold text-blue-600">${t.ticket_number}</span>
             </div>
         </td>

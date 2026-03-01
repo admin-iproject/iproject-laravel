@@ -14,7 +14,7 @@ class TicketConfigController extends Controller
 {
     private function companyId(): int
     {
-        return Auth::user()->company_id;
+        return (int) Auth::user()->company_id;
     }
 
     // ── Load all config data for the slideout ──────────────────────────

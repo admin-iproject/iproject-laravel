@@ -11,11 +11,17 @@ async function cfgFetch(url, options = {}) {
     };
     const res = await fetch(url, Object.assign({ headers }, options));
     if (!res.ok) {
-        const err = await res.text();
-        throw new Error(err || `HTTP ${res.status}`);
+        // Use safeJson to strip BOM from error responses too
+        try {
+            const err = await safeJson(res);
+            throw new Error(err.message || Object.values(err.errors||{})[0]?.[0] || `HTTP ${res.status}`);
+        } catch(e) {
+            if (e.message && !e.message.startsWith('HTTP')) throw e;
+            throw new Error(`HTTP ${res.status}`);
+        }
     }
-    // DELETE returns 200 with {ok:true}, everything else returns the model
-    return res.json();
+    // safeJson strips BOM (\uFEFF) before JSON.parse — fixes "Unexpected token" errors
+    return safeJson(res);
 }
 
 let _cfgData = {
@@ -195,10 +201,18 @@ function renderCloseReasonRow(r) {
 
 function renderSlaRow(p) {
     const fmt = m => m < 60 ? m+'m' : m < 1440 ? Math.round(m/60)+'h' : Math.round(m/1440)+'d';
+    const typeLabels = { incident: '🔥 Incident', request: '📋 Request', problem: '🔍 Problem', change: '🔄 Change' };
+    const priorityLabels = { 1: 'P1 Critical', 2: 'P2 High', 3: 'P3 Normal', 4: 'P4 Low', 5: 'P5 Minimal' };
+    const priorityBadge = p.priority
+        ? `<span class="cfg-badge bg-orange-100 text-orange-700">${priorityLabels[p.priority] ?? 'P'+p.priority}</span>` : '';
+    const typeBadge = p.ticket_type
+        ? `<span class="cfg-badge bg-indigo-100 text-indigo-700">${typeLabels[p.ticket_type] ?? p.ticket_type}</span>` : '';
     return `<div class="cfg-row">
-        <div class="flex items-center gap-3 flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
             <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <span class="font-medium text-gray-900 text-sm">${p.name}</span>
+            ${priorityBadge}
+            ${typeBadge}
             <span class="cfg-badge bg-blue-100 text-blue-700">Response: ${fmt(p.first_response_minutes)}</span>
             <span class="cfg-badge bg-purple-100 text-purple-700">Resolution: ${fmt(p.resolution_minutes)}</span>
             ${!p.is_active ? '<span class="cfg-badge bg-red-100 text-red-600">Inactive</span>' : ''}
@@ -252,6 +266,8 @@ function resetConfigForm(tab) {
     } else if (tab === 'sla') {
         document.getElementById('cfgSlaId').value            = '';
         document.getElementById('cfgSlaName').value          = '';
+        document.getElementById('cfgSlaPriority').value      = '';
+        document.getElementById('cfgSlaTicketType').value    = '';
         document.getElementById('cfgSlaFirstResponse').value = '60';
         document.getElementById('cfgSlaResolution').value    = '480';
     }
@@ -293,6 +309,8 @@ function editConfigItem(tab, id) {
     } else if (tab === 'sla') {
         document.getElementById('cfgSlaId').value            = item.id;
         document.getElementById('cfgSlaName').value          = item.name;
+        document.getElementById('cfgSlaPriority').value      = item.priority    ?? '';
+        document.getElementById('cfgSlaTicketType').value    = item.ticket_type ?? '';
         document.getElementById('cfgSlaFirstResponse').value = item.first_response_minutes;
         document.getElementById('cfgSlaResolution').value    = item.resolution_minutes;
     }
@@ -333,8 +351,12 @@ async function saveConfigItem(tab) {
     } else if (tab === 'close_reasons') {
         body = { name: document.getElementById('cfgCloseReasonName').value.trim() };
     } else if (tab === 'sla') {
+        const priority    = document.getElementById('cfgSlaPriority').value;
+        const ticketType  = document.getElementById('cfgSlaTicketType').value;
         body = {
             name:                   document.getElementById('cfgSlaName').value.trim(),
+            priority:               priority    ? parseInt(priority)  : null,
+            ticket_type:            ticketType  ? ticketType           : null,
             first_response_minutes: parseInt(document.getElementById('cfgSlaFirstResponse').value),
             resolution_minutes:     parseInt(document.getElementById('cfgSlaResolution').value),
         };

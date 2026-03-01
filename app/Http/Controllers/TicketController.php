@@ -17,11 +17,27 @@ use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\GeocoderService;
 use Illuminate\Support\Facades\Auth;
 
 class TicketController extends Controller
 {
     // ── Main List View ────────────────────────────────────────────────
+
+
+    /**
+     * Returns a Heroicon SVG string for the given ticket type.
+     * Overrides the model accessor so we control the exact icon rendered.
+     */
+    private static function typeIcon(string $type): string
+    {
+        return match($type) {
+            'incident' => '<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
+            'problem'  => '<svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0118 0z"/></svg>',
+            'change'   => '<svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>',
+            default    => '<svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>',
+        };
+    }
 
     public function index(Request $request)
     {
@@ -70,6 +86,13 @@ class TicketController extends Controller
         if ($request->filled('status'))   $query->where('status_id', $request->status);
         if ($request->filled('priority')) $query->where('priority', $request->priority);
         if ($request->filled('assignee')) $query->where('assignee_id', $request->assignee);
+        // Department filter — explicit param takes priority, else default to user's dept
+        $deptFilter = $request->has('dept')
+            ? $request->get('dept')           // explicit (empty string = All Departments)
+            : $user->department_id;           // default to user's own department
+        if ($deptFilter && $filter !== 'by_dept') {
+            $query->byDepartment($deptFilter);
+        }
 
         $tickets    = $query->orderByDesc('last_activity_at')->paginate(25)->withQueryString();
         $statuses   = TicketStatus::forCompany($companyId)->active()->get();
@@ -100,6 +123,7 @@ class TicketController extends Controller
             'reporter_name'  => 'nullable|string|max:150',
             'assignee_id'    => 'nullable|exists:users,id',
             'task_id'        => 'nullable|exists:tasks,id',
+            'project_id'     => 'nullable|exists:projects,id',
             'lat'            => 'nullable|numeric',
             'lng'            => 'nullable|numeric',
         ]);
@@ -111,6 +135,38 @@ class TicketController extends Controller
         try {
             // Find reporter user by email
             $reporter = User::where('email', $validated['reporter_email'])->first();
+
+            // ── Lat/Lng fallback chain ───────────────────────────────────────
+            // Priority: browser geolocation (from form) → dept → user → company
+            if (empty($validated['lat']) || empty($validated['lng'])) {
+                $coords = null;
+
+                // 1. Try department address
+                if (!$coords && !empty($validated['department_id'])) {
+                    $dept = \App\Models\Department::find($validated['department_id']);
+                    if ($dept && $dept->lat && $dept->lng) {
+                        $coords = ['lat' => $dept->lat, 'lng' => $dept->lng];
+                    }
+                }
+
+                // 2. Try reporter/creator user address
+                if (!$coords && $user->lat && $user->lng) {
+                    $coords = ['lat' => $user->lat, 'lng' => $user->lng];
+                }
+
+                // 3. Try company address (always exists)
+                if (!$coords) {
+                    $company = \App\Models\Company::find($companyId);
+                    if ($company && $company->lat && $company->lng) {
+                        $coords = ['lat' => $company->lat, 'lng' => $company->lng];
+                    }
+                }
+
+                if ($coords) {
+                    $validated['lat'] = $coords['lat'];
+                    $validated['lng'] = $coords['lng'];
+                }
+            }
 
             $ticket = Ticket::create(array_merge($validated, [
                 'company_id'     => $companyId,
@@ -151,7 +207,7 @@ class TicketController extends Controller
 
     public function editData(Ticket $ticket)
     {
-        $ticket->load(['status','category','department','reporter','assignee','assets','slaPolicy','closeReason']);
+        $ticket->load(['status','category','department','reporter','assignee','assets','slaPolicy','closeReason','project','task']);
 
         return response()->json([
             'success' => true,
@@ -169,6 +225,7 @@ class TicketController extends Controller
                 'reporter_name'  => $ticket->reporter_name,
                 'assignee_id'    => $ticket->assignee_id,
                 'task_id'        => $ticket->task_id,
+                'project_id'     => $ticket->project_id,
                 'close_reason_id'=> $ticket->close_reason_id,
                 'close_note'     => $ticket->close_note,
                 'status'         => $ticket->status,
@@ -183,61 +240,121 @@ class TicketController extends Controller
 
     public function update(Request $request, Ticket $ticket)
     {
+        // Supports both full-form save AND single-field inline PATCH
         $validated = $request->validate([
-            'type'           => 'required|in:incident,request,problem,change',
-            'subject'        => 'required|string|max:255',
-            'body'           => 'required|string',
-            'priority'       => 'required|integer|min:1',
-            'status_id'      => 'required|exists:ticket_statuses,id',
+            'type'           => 'sometimes|required|in:incident,request,problem,change',
+            'subject'        => 'sometimes|required|string|max:255',
+            'body'           => 'sometimes|required|string',
+            'priority'       => 'sometimes|required|integer|min:1',
+            'status_id'      => 'sometimes|required|exists:ticket_statuses,id',
             'category_id'    => 'nullable|exists:ticket_categories,id',
             'department_id'  => 'nullable|exists:departments,id',
-            'reporter_email' => 'required|email|max:150',
+            'reporter_email' => 'sometimes|required|email|max:150',
             'reporter_name'  => 'nullable|string|max:150',
             'assignee_id'    => 'nullable|exists:users,id',
             'task_id'        => 'nullable|exists:tasks,id',
+            'project_id'     => 'nullable|exists:projects,id',
             'close_reason_id'=> 'nullable|exists:ticket_close_reasons,id',
             'close_note'     => 'nullable|string',
         ]);
 
         DB::beginTransaction();
         try {
-            $oldStatusId  = $ticket->status_id;
-            $oldAssignee  = $ticket->assignee_id;
-            $newStatus    = TicketStatus::find($validated['status_id']);
+            $user          = Auth::user();
+            $actor         = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: $user->email;
+            $oldStatusId   = $ticket->status_id;
+            $oldAssigneeId = $ticket->assignee_id;
+            $activityLines = [];
 
-            // Handle SLA clock pause/resume
-            if ($newStatus) {
-                if ($newStatus->stops_sla_clock && !$ticket->sla_paused_at) {
-                    $validated['sla_paused_at'] = now();
-                } elseif (!$newStatus->stops_sla_clock && $ticket->sla_paused_at) {
-                    $pausedMins = $ticket->sla_paused_at->diffInMinutes(now());
-                    $validated['sla_paused_minutes'] = ($ticket->sla_paused_minutes ?? 0) + $pausedMins;
-                    $validated['sla_paused_at']      = null;
-                }
-                // Stamp resolved_at
-                if ($newStatus->is_resolved && !$ticket->resolved_at) {
-                    $validated['resolved_at'] = now();
-                } elseif (!$newStatus->is_resolved && !$newStatus->is_closed) {
-                    $validated['resolved_at'] = null;
+            // Status change
+            if (isset($validated['status_id']) && $validated['status_id'] != $oldStatusId) {
+                $newStatus = TicketStatus::find($validated['status_id']);
+                $oldStatus = TicketStatus::find($oldStatusId);
+                if ($newStatus) {
+                    if ($newStatus->stops_sla_clock && !$ticket->sla_paused_at) {
+                        $validated['sla_paused_at'] = now();
+                    } elseif (!$newStatus->stops_sla_clock && $ticket->sla_paused_at) {
+                        $pausedMins = $ticket->sla_paused_at->diffInMinutes(now());
+                        $validated['sla_paused_minutes'] = ($ticket->sla_paused_minutes ?? 0) + $pausedMins;
+                        $validated['sla_paused_at']      = null;
+                    }
+                    if ($newStatus->is_resolved && !$ticket->resolved_at) {
+                        $validated['resolved_at'] = now();
+                    } elseif (!$newStatus->is_resolved && !$newStatus->is_closed) {
+                        $validated['resolved_at'] = null;
+                    }
+                    $activityLines[] = '&#x1F504; Status changed from <strong>' . e($oldStatus?->name ?? 'None') . '</strong> to <strong>' . e($newStatus->name) . '</strong>';
                 }
             }
 
-            // Assignment tracking
-            if (isset($validated['assignee_id']) && $validated['assignee_id'] != $oldAssignee) {
-                $validated['assigned_by'] = Auth::id();
+            // Assignee change
+            if (array_key_exists('assignee_id', $validated) && $validated['assignee_id'] != $oldAssigneeId) {
+                $validated['assigned_by'] = $user->id;
                 $validated['assigned_at'] = now();
+                if ($validated['assignee_id']) {
+                    $newAssignee = \App\Models\User::find($validated['assignee_id']);
+                    $name = $newAssignee ? trim(($newAssignee->first_name ?? '') . ' ' . ($newAssignee->last_name ?? '')) : '?';
+                    $activityLines[] = '&#x1F464; Assigned to <strong>' . e($name) . '</strong>';
+                } else {
+                    $activityLines[] = '&#x1F464; Assignee removed';
+                }
+            }
+
+            // Priority change
+            if (isset($validated['priority']) && $validated['priority'] != $ticket->priority) {
+                $priorityNames = [1=>'Critical',2=>'High',3=>'Normal',4=>'Low',5=>'Minimal'];
+                $pName = $priorityNames[$validated['priority']] ?? $validated['priority'];
+                $activityLines[] = '&#x26A1; Priority changed to <strong>' . e($pName) . '</strong>';
+            }
+
+            // Type change
+            if (isset($validated['type']) && $validated['type'] !== $ticket->type) {
+                $activityLines[] = '&#x1F3F7; Type changed to <strong>' . e(ucfirst($validated['type'])) . '</strong>';
+            }
+
+            // Category change
+            if (array_key_exists('category_id', $validated) && $validated['category_id'] != $ticket->category_id) {
+                $cat = $validated['category_id'] ? \App\Models\TicketCategory::find($validated['category_id']) : null;
+                $activityLines[] = '&#x1F4C2; Category changed to <strong>' . e($cat?->name ?? 'None') . '</strong>';
+            }
+
+            // Department change
+            if (array_key_exists('department_id', $validated) && $validated['department_id'] != $ticket->department_id) {
+                $dept = $validated['department_id'] ? \App\Models\Department::find($validated['department_id']) : null;
+                $activityLines[] = '&#x1F3E2; Department changed to <strong>' . e($dept?->name ?? 'None') . '</strong>';
             }
 
             $validated['last_activity_at'] = now();
             $ticket->update($validated);
 
+            // Create compact activity reply
+            $activityReply = null;
+            if (!empty($activityLines)) {
+                $body = '<p class="text-xs text-gray-400 italic">' . implode('<br>', $activityLines) . '</p>';
+                $activityReply = $ticket->replies()->create([
+                    'author_id' => $user->id,
+                    'body'      => $body,
+                    'is_public' => false,
+                    'source'    => 'activity',
+                ]);
+            }
+
             DB::commit();
 
-            return response()->json([
+            $fresh = $ticket->fresh(['status','category','assignee','reporter']);
+            $response = [
                 'success' => true,
                 'message' => 'Ticket updated.',
-                'ticket'  => $this->ticketRowData($ticket->fresh(['status','category','assignee','reporter'])),
-            ]);
+                'ticket'  => $this->ticketRowData($fresh),
+            ];
+            if ($activityReply) {
+                $response['activity_reply'] = array_merge($activityReply->toArray(), [
+                    'author_display_name' => $activityReply->author_display_name,
+                    'author_initials'     => $activityReply->author_initials,
+                    'is_activity'         => true,
+                ]);
+            }
+            return response()->json($response);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -252,7 +369,7 @@ class TicketController extends Controller
         $ticket->load([
             'status','category','department','reporter','assignee',
             'replies.author','logs.user','assets','watchers.user',
-            'relations.relatedTicket','slaPolicy','closeReason','task',
+            'relations.relatedTicket','slaPolicy','closeReason','task','project',
         ]);
 
         $totalHours = $ticket->logs->sum('hours');
@@ -266,7 +383,7 @@ class TicketController extends Controller
                 'sla_color'     => $ticket->sla_color,
                 'priority_name' => $ticket->priority_name,
                 'priority_color'=> $ticket->priority_color,
-                'type_icon'     => $ticket->type_icon,
+                'type_icon'     => self::typeIcon($ticket->type),
                 'type_label'    => $ticket->type_label,
                 'total_hours'   => round($totalHours, 2),
                 'total_cost'    => round($totalCost, 2),
@@ -364,7 +481,7 @@ class TicketController extends Controller
                 'ticket_number' => $t->ticket_number,
                 'subject'       => $t->subject,
                 'type'          => $t->type,
-                'type_icon'     => $t->type_icon,
+                'type_icon'     => self::typeIcon($t->type),
                 'priority'      => $t->priority,
                 'priority_name' => $t->priority_name,
                 'priority_color'=> $t->priority_color,
@@ -493,6 +610,68 @@ class TicketController extends Controller
         ]);
     }
 
+    // ── Projects list (for New Ticket link-to-project dropdown) ──────
+
+    public function projects(Request $request)
+    {
+        $user      = Auth::user();
+        $companyId = $user->company_id;
+
+        // Projects the user owns OR is a team member of, within their company
+        // Excludes archived (status 4) and cancelled (status 5)
+        $owned = \App\Models\Project::where('company_id', $companyId)
+            ->where('owner_id', $user->id)
+            ->whereNotIn('status', [4, 5])
+            ->pluck('id');
+
+        $member = \App\Models\Project::where('company_id', $companyId)
+            ->whereHas('team', fn($q) => $q->where('user_id', $user->id))
+            ->whereNotIn('status', [4, 5])
+            ->pluck('id');
+
+        $projects = \App\Models\Project::whereIn('id', $owned->merge($member)->unique())
+            ->orderBy('name')
+            ->get(['id', 'name', 'status']);
+
+        // Fallback: if user has no owned/member projects, return all company projects
+        // (handles super admin or solo user scenario)
+        if ($projects->isEmpty()) {
+            $projects = \App\Models\Project::where('company_id', $companyId)
+                ->whereNotIn('status', [4, 5])
+                ->orderBy('name')
+                ->get(['id', 'name', 'status']);
+        }
+
+        return response()->json(['success' => true, 'projects' => $projects]);
+    }
+
+    // ── Tasks for a project (for New Ticket task dropdown) ────────────
+
+    public function projectTasks(Request $request, int $projectId)
+    {
+        $companyId = Auth::user()->company_id;
+
+        // Verify the project belongs to this company
+        $project = \App\Models\Project::where('id', $projectId)
+            ->where('company_id', $companyId)
+            ->firstOrFail();
+
+        // Flat list with indentation prefix for parent/child display
+        $tasks = \App\Models\Task::where('project_id', $projectId)
+            ->whereNull('deleted_at')
+            ->orderBy('parent_id')
+            ->orderBy('task_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'parent_id', 'status'])
+            ->map(fn($t) => [
+                'id'     => $t->id,
+                'name'   => $t->name,
+                'indent' => $t->parent_id ? '↳ ' : '',
+            ]);
+
+        return response()->json(['success' => true, 'tasks' => $tasks]);
+    }
+
     // ── Destroy ───────────────────────────────────────────────────────
 
     public function destroy(Ticket $ticket)
@@ -525,7 +704,7 @@ class TicketController extends Controller
             'ticket_number'  => $ticket->ticket_number,
             'subject'        => $ticket->subject,
             'type'           => $ticket->type,
-            'type_icon'      => $ticket->type_icon,
+            'type_icon'      => self::typeIcon($ticket->type),
             'type_label'     => $ticket->type_label,
             'priority'       => $ticket->priority,
             'priority_name'  => $ticket->priority_name,

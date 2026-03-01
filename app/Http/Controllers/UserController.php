@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\CompanySkill;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Services\GeocoderService;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 
@@ -188,6 +189,10 @@ class UserController extends Controller
             'state'          => 'nullable|string|max:50',
             'zip'            => 'nullable|string|max:20',
             'country'        => 'nullable|string|max:50',
+            'lat'            => 'nullable|numeric',
+            'lng'            => 'nullable|numeric',
+            'lat'            => 'nullable|numeric',
+            'lng'            => 'nullable|numeric',
             'birthday'       => 'nullable|string|max:20',
             'availability'   => 'nullable|array', // ADDED
             'availability.*' => 'nullable|numeric|min:0|max:24', // ADDED
@@ -310,6 +315,10 @@ class UserController extends Controller
             'state'          => 'nullable|string|max:50',
             'zip'            => 'nullable|string|max:20',
             'country'        => 'nullable|string|max:50',
+            'lat'            => 'nullable|numeric',
+            'lng'            => 'nullable|numeric',
+            'lat'            => 'nullable|numeric',
+            'lng'            => 'nullable|numeric',
             'birthday'       => 'nullable|string|max:20',
             'availability'   => 'nullable|array', // ADDED
             'availability.*' => 'nullable|numeric|min:0|max:24', // ADDED
@@ -330,6 +339,15 @@ class UserController extends Controller
         }
 
         $user->update($validated);
+
+        // Silently geocode address if address fields were submitted
+        if ($request->hasAny(['address_line1','city','state','zip'])) {
+            if ($user->address_line1 || $user->city) {
+                if (GeocoderService::geocodeModel($user)) {
+                    $user->saveQuietly(); // avoid triggering updated events again
+                }
+            }
+        }
 
         // Update standard availability
         if ($request->has('availability')) {

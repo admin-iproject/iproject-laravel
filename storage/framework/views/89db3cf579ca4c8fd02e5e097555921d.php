@@ -6,7 +6,7 @@
 <?php $__env->startSection('sidebar-content'); ?>
 
     
-    <div class="px-3 pt-4 pb-2">
+    <div>
         <p class="sidebar-section-title">MY QUEUE</p>
 
         <a href="<?php echo e(route('tickets.index', ['filter' => 'mine'])); ?>"
@@ -47,7 +47,7 @@
     <div class="border-t border-gray-100 mx-3"></div>
 
     
-    <div class="px-3 py-2">
+    <div>
         <p class="sidebar-section-title">ALL TICKETS</p>
 
         <a href="<?php echo e(route('tickets.index', ['filter' => 'all_open'])); ?>"
@@ -95,33 +95,10 @@
         </a>
     </div>
 
-    
-    <?php if($departments->count()): ?>
-        <div class="border-t border-gray-100 mx-3"></div>
-        <div class="px-3 py-2" x-data="{ open: true }">
-            <button @click="open = !open" class="sidebar-section-title w-full flex items-center justify-between">
-                <span>BY DEPARTMENT</span>
-                <svg class="w-3 h-3 text-gray-400 transition-transform" :class="open ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-            </button>
-            <div x-show="open">
-                <?php $__currentLoopData = $departments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dept): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <a href="<?php echo e(route('tickets.index', ['filter' => 'by_dept', 'dept' => $dept->id])); ?>"
-                       class="sidebar-menu-item <?php echo e($filter === 'by_dept' && request('dept') == $dept->id ? 'active' : ''); ?>">
-                        <svg class="sidebar-menu-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                        </svg>
-                        <span class="sidebar-menu-item-text truncate"><?php echo e($dept->name); ?></span>
-                    </a>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-            </div>
-        </div>
-    <?php endif; ?>
 
     
     <div class="border-t border-gray-100 mx-3"></div>
-    <div class="px-3 py-2">
+    <div>
         <p class="sidebar-section-title">REPORTS & TOOLS</p>
 
         <button onclick="openMapModal()" class="sidebar-menu-item w-full text-left">
@@ -169,7 +146,7 @@
 
     
     <div class="border-t border-gray-100 mx-3"></div>
-    <div class="px-3 py-3">
+    <div>
         <button onclick="openTicketConfigSlideout()" class="sidebar-menu-item w-full text-left text-gray-500">
             <svg class="sidebar-menu-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -184,44 +161,98 @@
 
 <?php $__env->startPush('styles'); ?>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 <?php $__env->stopPush(); ?>
 
 
 <?php $__env->startSection('content'); ?>
 
     
-    <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <div class="flex items-center gap-3">
-            <h1 class="text-lg font-semibold text-gray-900">
-                <?php echo e(match($filter) {
-                    'mine'            => 'My Open Tickets',
-                    'my_team'         => "My Team's Tickets",
-                    'unassigned'      => 'Unassigned Tickets',
-                    'all_open'        => 'All Open Tickets',
-                    'overdue'         => 'Overdue / SLA Breached',
-                    'watching'        => "Tickets I'm Watching",
-                    'recently_closed' => 'Recently Closed',
-                    'by_dept'         => 'By Department',
-                    default           => 'Tickets'
-                }); ?>
+    <div class="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-shrink-0 overflow-x-auto">
 
-            </h1>
-            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
-                <?php echo e($tickets->total()); ?>
+        
+        <h1 class="text-lg font-semibold text-gray-900 flex-shrink-0">
+            <?php echo e(match($filter) {
+                'mine'            => 'My Open Tickets',
+                'my_team'         => "My Team's Tickets",
+                'unassigned'      => 'Unassigned Tickets',
+                'all_open'        => 'All Open Tickets',
+                'overdue'         => 'Overdue / SLA Breached',
+                'watching'        => "Tickets I'm Watching",
+                'recently_closed' => 'Recently Closed',
+                'by_dept'         => 'By Department',
+                default           => 'Tickets'
+            }); ?>
 
-            </span>
-        </div>
-        <button onclick="openCreateTicketModal()"
-            class="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            New Ticket
-        </button>
+        </h1>
+        <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
+            <?php echo e($tickets->total()); ?>
+
+        </span>
+
+        
+        <?php echo $__env->make('tickets._partials._filters-bar', compact('statuses','categories','priorities','agents','tickets','departments'), array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+
+        
+        <?php $activeDept = request()->has('dept') ? request('dept') : (auth()->user()->department_id ?? ''); ?>
+        <form id="filterForm" method="GET" action="<?php echo e(route('tickets.index')); ?>"
+              class="items-center gap-2 flex-shrink-0" style="display:none; align-items:center; margin-bottom: 0;">
+            <input type="hidden" name="filter" value="<?php echo e(request('filter','all_open')); ?>">
+            <?php if(request('q')): ?> <input type="hidden" name="q" value="<?php echo e(request('q')); ?>"> <?php endif; ?>
+
+            <select name="type" onchange="this.form.submit()"
+                    class="text-xs border border-gray-300 rounded-lg pl-2 pr-7 py-1.5 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style="background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;">
+                <option value="">All Types</option>
+                <?php $__currentLoopData = ['incident','request','problem','change']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <option value="<?php echo e($t); ?>" <?php echo e(request('type') == $t ? 'selected' : ''); ?>><?php echo e(ucfirst($t)); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </select>
+
+            <select name="priority" onchange="this.form.submit()"
+                    class="text-xs border border-gray-300 rounded-lg pl-2 pr-7 py-1.5 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style="background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;">
+                <option value="">All Priorities</option>
+                <?php $__currentLoopData = $priorities; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $p): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <option value="<?php echo e($p->level); ?>" <?php echo e(request('priority') == $p->level ? 'selected' : ''); ?>><?php echo e($p->name); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </select>
+
+            <select name="status" onchange="this.form.submit()"
+                    class="text-xs border border-gray-300 rounded-lg pl-2 pr-7 py-1.5 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style="background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;">
+                <option value="">All Statuses</option>
+                <?php $__currentLoopData = $statuses; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $s): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <option value="<?php echo e($s->id); ?>" <?php echo e(request('status') == $s->id ? 'selected' : ''); ?>><?php echo e($s->name); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </select>
+
+            <select name="assignee" onchange="this.form.submit()"
+                    class="text-xs border border-gray-300 rounded-lg pl-2 pr-7 py-1.5 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style="background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;">
+                <option value="">All Agents</option>
+                <?php $__currentLoopData = $agents; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $a): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <option value="<?php echo e($a->id); ?>" <?php echo e(request('assignee') == $a->id ? 'selected' : ''); ?>>
+                        <?php echo e(trim(($a->first_name ?? '') . ' ' . ($a->last_name ?? '')) ?: $a->email); ?>
+
+                    </option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </select>
+
+            <?php if(isset($departments) && $departments->count()): ?>
+            <select name="dept" onchange="this.form.submit()"
+                    class="text-xs border border-gray-300 rounded-lg pl-2 pr-7 py-1.5 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style="background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;">
+                <option value="">All Departments</option>
+                <?php $__currentLoopData = $departments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $d): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <option value="<?php echo e($d->id); ?>" <?php echo e((string)$activeDept === (string)$d->id ? 'selected' : ''); ?>><?php echo e($d->name); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+            </select>
+            <?php endif; ?>
+        </form>
+
     </div>
-
-    
-    <?php echo $__env->make('tickets._partials._filters-bar', compact('statuses','categories','priorities','agents','tickets'), array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
     
     <div class="flex-1 overflow-auto px-6 py-4">
@@ -280,6 +311,19 @@
 
 <?php $__env->startPush('scripts'); ?>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+// ── BOM-safe JSON parser — must be defined before tickets.js loads ──
+// Strips BOM (\uFEFF) characters that PHP files saved with BOM encoding
+// prepend to responses, causing "Unexpected token" JSON.parse errors.
+function safeJson(r) {
+    return r.text().then(text => {
+        const clean = text.replace(/^[\uFEFF\s]+/, '');
+        return JSON.parse(clean);
+    });
+}
+</script>
 <script src="<?php echo e(asset('js/tickets.js')); ?>"></script>
 <script src="<?php echo e(asset('js/ticket-config.js')); ?>"></script>
 <script>
@@ -290,6 +334,31 @@
     window._ticketSolutionUrl  = '<?php echo e(route('tickets.searchSolutions')); ?>';
     window._ticketTimesheetUrl = '<?php echo e(route('tickets.timesheetData')); ?>';
     window._ticketCsrf         = '<?php echo e(csrf_token()); ?>';
+    window._ticketProjectsUrl  = '<?php echo e(route('tickets.projects')); ?>';
+    window._ticketTasksUrl     = '<?php echo e(url('tickets/projects/__PID__/tasks')); ?>';
+    // Data arrays for inline sidebar editing
+    <?php
+        $agentsJson     = $agents->map(fn($a) => [
+            'id'            => $a->id,
+            'name'          => trim(($a->first_name ?? '').' '.($a->last_name ?? '')) ?: $a->email,
+            'department_id' => $a->department_id,
+        ])->values();
+        $deptsJson      = $departments->map(fn($d) => ['id' => $d->id, 'name' => $d->name])->values();
+        $statusesJson   = $statuses->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'color' => $s->color])->values();
+        $categoriesJson = $categories->map(fn($c) => ['id' => $c->id, 'name' => $c->name])->values();
+        $prioritiesJson = $priorities->map(fn($p) => ['level' => $p->level, 'name' => $p->name, 'color' => $p->color ?? '#6b7280'])->values();
+    ?>
+    window._ticketAgents      = <?php echo json_encode($agentsJson, 15, 512) ?>;
+    window._ticketDepartments = <?php echo json_encode($deptsJson, 15, 512) ?>;
+    window._ticketStatuses    = <?php echo json_encode($statusesJson, 15, 512) ?>;
+    window._ticketCategories  = <?php echo json_encode($categoriesJson, 15, 512) ?>;
+    window._ticketPriorities = <?php echo json_encode($prioritiesJson, 15, 512) ?>;
+    window._ticketAuthUser     = {
+        email:      '<?php echo e(auth()->user()->email); ?>',
+        name:       '<?php echo e(trim(auth()->user()->first_name.' '.auth()->user()->last_name)); ?>',
+        departmentId: <?php echo e(auth()->user()->department_id ?? 'null'); ?>,
+        address:    '<?php echo e(addslashes(trim((auth()->user()->address_line1 ?? '').' '.(auth()->user()->city ?? '').' '.(auth()->user()->state ?? '').' '.(auth()->user()->zip ?? '')))); ?>'
+    };
 </script>
 <?php $__env->stopPush(); ?>
 

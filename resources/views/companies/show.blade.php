@@ -490,6 +490,13 @@
                             </button>
                         </div>
 
+                        {{-- Hidden lat/lng + geocode status badge --}}
+                        <input type="hidden" id="dept-lat" name="lat">
+                        <input type="hidden" id="dept-lng" name="lng">
+                        <div id="dept-geocode-status"
+                             style="display:none; margin-top:4px; padding:2px 8px; font-size:10px; font-weight:500; color:#166534; background:#dcfce7; border:1px solid #bbf7d0; border-radius:99px; width:fit-content;">
+                        </div>
+
                     </form>
                 </div>
             </div>
@@ -1071,6 +1078,22 @@ function loadDeptIntoForm(dept) {
     document.getElementById('dept-state').value        = dept.state       || '';
     document.getElementById('dept-zip').value          = dept.zip         || '';
     document.getElementById('dept-country').value      = dept.country     || '';
+    // Restore saved lat/lng (hidden fields)
+    document.getElementById('dept-lat').value          = dept.lat         || '';
+    document.getElementById('dept-lng').value          = dept.lng         || '';
+    const geoStatus = document.getElementById('dept-geocode-status');
+    if (geoStatus) {
+        if (dept.lat) {
+            geoStatus.textContent    = '📍 ' + parseFloat(dept.lat).toFixed(5) + ', ' + parseFloat(dept.lng).toFixed(5);
+            geoStatus.style.display  = 'block';
+            geoStatus.style.color    = '#166534';
+            geoStatus.style.background = '#dcfce7';
+            geoStatus.style.borderColor = '#bbf7d0';
+        } else {
+            geoStatus.style.display  = 'none';
+            geoStatus.textContent    = '';
+        }
+    }
 
     // Populate parent dropdown (excluding self)
     populateParentDropdown(dept.id);
@@ -1114,14 +1137,24 @@ function resetDeptForm() {
     document.getElementById('dept-cancel-edit-link').classList.add('hidden');
     closeDeptForm();
     populateParentDropdown();
+    document.getElementById('dept-lat').value  = '';
+    document.getElementById('dept-lng').value  = '';
+    const gs = document.getElementById('dept-geocode-status'); if(gs) { gs.textContent = ''; gs.style.display = 'none'; }
 }
 
 // ── Save (create or update) ──
-function saveDepartment(e) {
+async function saveDepartment(e) {
     e.preventDefault();
 
     const id = document.getElementById('dept-edit-id').value;
     const isEdit = !!id;
+
+    // Auto-geocode on save if lat/lng not yet captured
+    const latEl = document.getElementById('dept-lat');
+    const lngEl = document.getElementById('dept-lng');
+    if ((!latEl.value) && window.geocodeAddress) {
+        await deptGeocodeAddress();
+    }
 
     const payload = {
         name:          document.getElementById('dept-name').value.trim(),
@@ -1138,6 +1171,8 @@ function saveDepartment(e) {
         state:         document.getElementById('dept-state').value.trim()       || null,
         zip:           document.getElementById('dept-zip').value.trim()         || null,
         country:       document.getElementById('dept-country').value.trim()     || null,
+        lat:           document.getElementById('dept-lat').value                  || null,
+        lng:           document.getElementById('dept-lng').value                  || null,
     };
 
     const url    = isEdit ? `/companies/${companyId}/departments/${id}` : `/companies/${companyId}/departments`;
@@ -1500,5 +1535,54 @@ function hideDeptTooltip() {
     tip.style.display = 'none';
 }
 
+
+// ── Dept address geocoding ─────────────────────────────────────────
+async function deptGeocodeAddress() {
+    const addr  = document.getElementById('dept-address1')?.value?.trim();
+    const city  = document.getElementById('dept-city')?.value?.trim();
+    const state = document.getElementById('dept-state')?.value?.trim();
+    const zip   = document.getElementById('dept-zip')?.value?.trim();
+    if (!addr && !city) return;
+
+    const status = document.getElementById('dept-geocode-status');
+    if (status) { status.textContent = '📍 Locating…'; status.style.color = '#3b82f6'; }
+
+    const coords = window.geocodeAddress
+        ? await window.geocodeAddress(addr, city, state, zip)
+        : null;
+
+    if (coords) {
+        document.getElementById('dept-lat').value = coords.lat;
+        document.getElementById('dept-lng').value = coords.lng;
+        if (status) {
+            status.textContent = '📍 ' + coords.lat.toFixed(5) + ', ' + coords.lng.toFixed(5);
+            status.style.display = 'block';
+            status.style.color      = '#166534';
+            status.style.background = '#dcfce7';
+            status.style.borderColor = '#bbf7d0';
+        }
+    } else {
+        if (status) {
+            status.textContent = '📍 Address not found';
+            status.style.display = 'block';
+            status.style.color      = '#92400e';
+            status.style.background = '#fef3c7';
+            status.style.borderColor = '#fde68a';
+        }
+    }
+}
+
+// Wire blur on address fields to trigger geocoding
+document.addEventListener('DOMContentLoaded', function() {
+    ['dept-address1','dept-city','dept-state','dept-zip'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('blur', deptGeocodeAddress);
+    });
+});
+
+// Populate lat/lng when editing existing department
+const _origEditDept = typeof editDepartment === 'function' ? editDepartment : null;
+
 </script>
+<script src="{{ asset('js/geocoder.js') }}"></script>
 @endsection
